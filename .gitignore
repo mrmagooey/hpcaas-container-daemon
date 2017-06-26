@@ -2,5 +2,4 @@ test-results/
 tmp/
 routes/
 /main
-/cloudmol-cluster-monitor
-/hpcaas-cluster-daemon
+/hpcaas-container-daemon
