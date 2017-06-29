@@ -1,4 +1,4 @@
-# Container-Daemon
+# HPCaaS-Container-Daemon
 
 This daemon lives within the HPCaaS container and communicates through its https endpoint. It allows for a properly authenticated external service query or configure the code running in the container, and also provides services internally to the container and the code.
 
@@ -34,8 +34,6 @@ Once the container has started, the daemon will be listening for configuration i
 1. Results directory: Where on the container filesystem the daemon will move the results file when the code has finished. This should correspond to a special volume that has been mounted (e.g. host filesytem or network drive).
 
 1. AWS S3 Presigned URL: The presigned url that the daemon will upload results to when the code is finished.
-
-
 
 ### Running Code
 
