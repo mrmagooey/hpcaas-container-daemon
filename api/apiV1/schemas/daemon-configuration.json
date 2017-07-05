@@ -1,0 +1,25 @@
+{
+  "type": "object",
+  "properties": {
+    "daemonParameters": {
+      "description": "A list of configuration items for the container",
+      "type": "object",
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          }
+        ]
+      }
+    }
+  },
+  "required": [
+    "codeParameters"
+  ]
+}

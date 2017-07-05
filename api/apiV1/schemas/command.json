@@ -1,0 +1,13 @@
+{
+  "type": "object",
+  "properties": {
+    "command": {
+      "description": "Command",
+      "type": "string",
+      "enum": ["start", "kill"]
+    }
+  },
+  "required": [
+    "codeState"
+  ]
+}

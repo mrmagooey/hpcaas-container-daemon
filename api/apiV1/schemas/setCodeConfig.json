@@ -1,0 +1,25 @@
+{
+  "type": "object",
+  "properties": {
+    "codeParameters": {
+      "description": "A list of configuration items that the code will use",
+      "type": "object",
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          }
+        ]
+      }
+    }
+  },
+  "required": [
+    "codeParameters"
+  ]
+}

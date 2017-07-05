@@ -137,10 +137,6 @@ The for configuration elements related to the daemon or container, and not direc
 
     POST /v1/daemon-configuration
     
-Similarly to code-configuration, the daemon listens for configuration items at:
-
-    POST /v1/code-configuration
-
 If the Content-Type is `application/json`, it will expect a body containing a JSON object with the following json schema.
 
     {

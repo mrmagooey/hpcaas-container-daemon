@@ -1,0 +1,12 @@
+{
+  "type": "object",
+  "properties": {
+    "codeState": {
+      "description": "Name of the code to be executed",
+      "type": "string"
+    }
+  },
+  "required": [
+    "codeState"
+  ]
+}
