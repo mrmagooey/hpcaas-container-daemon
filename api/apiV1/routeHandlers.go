@@ -1,12 +1,15 @@
 package apiV1
 
+import "fmt"
+import "encoding/json"
 import "net/http"
 import "errors"
-import "fmt"
+
 import "github.com/lestrrat/go-jsschema"
 import "github.com/lestrrat/go-jsval/builder"
 import "github.com/lestrrat/go-jsval"
-import "encoding/json"
+
+import "github.com/mrmagooey/hpcaas-container-daemon/container"
 import "github.com/mrmagooey/hpcaas-container-daemon/state"
 
 type response_json struct {
@@ -68,7 +71,7 @@ func SetCodeConfig() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		requestJSON, err := validatePOSTRequest(r, v)
 		if err != nil {
-			jsonResponse(w, "error", map[string]interface{}{
+			jsonResponse(w, "fail", map[string]interface{}{
 				"message": err.Error(),
 			})
 			return
@@ -76,6 +79,13 @@ func SetCodeConfig() func(w http.ResponseWriter, r *http.Request) {
 		params := requestJSON["codeParameters"].(map[string]interface{})
 		// send to state
 		err = state.SetCodeParams(params)
+		if err != nil {
+			jsonResponse(w, "error", map[string]interface{}{
+				"message": "parameters failed to set",
+			})
+		}
+		// write to disk
+		err = container.WriteCodeParams()
 		if err != nil {
 			jsonResponse(w, "error", map[string]interface{}{
 				"message": "parameters failed to set",
@@ -100,7 +110,7 @@ func SetCodeName() func(w http.ResponseWriter, r *http.Request) {
 		// send to state
 		state.SetCodeName(requestJSON["codeName"].(string))
 		if err != nil {
-			jsonResponse(w, "error", map[string]interface{}{
+			jsonResponse(w, "fail", map[string]interface{}{
 				"message": "parameters failed to set",
 			})
 		}
@@ -115,7 +125,7 @@ func SetCodeState() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		requestJSON, err := validatePOSTRequest(r, v)
 		if err != nil {
-			jsonResponse(w, "error", map[string]interface{}{
+			jsonResponse(w, "fail", map[string]interface{}{
 				"message": err.Error(),
 			})
 		}
@@ -138,27 +148,58 @@ func Command() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		requestJSON, err := validatePOSTRequest(r, v)
 		if err != nil {
-			jsonResponse(w, "error", map[string]interface{}{
+			jsonResponse(w, "fail", map[string]interface{}{
 				"message": err.Error(),
 			})
+			return
 		}
 		commandString := requestJSON["command"].(string)
 		// the json schema should ensure that these are the only possibilities
 		if commandString == "start" {
-
+			err = container.ExecuteCode()
+			if err != nil {
+				jsonResponse(w, "error", map[string]interface{}{
+					"message": err.Error(),
+				})
+				return
+			} else {
+				jsonResponse(w, "success", map[string]interface{}{
+					"message": "Code started",
+				})
+			}
 		}
 		if commandString == "kill" {
-
+			err = container.KillCode()
+			if err != nil {
+				jsonResponse(w, "error", map[string]interface{}{
+					"message": err.Error(),
+				})
+				return
+			} else {
+				jsonResponse(w, "success", map[string]interface{}{
+					"message": "Code killed",
+				})
+				return
+			}
 		}
-		// send to state
+	}
+}
 
+func SetSSHAddresses() func(w http.ResponseWriter, r *http.Request) {
+	v := getJSONValidator(`schemas/setSSHAddresses.json`)
+	return func(w http.ResponseWriter, r *http.Request) {
+		requestJSON, err := validatePOSTRequest(r, v)
 		if err != nil {
-			jsonResponse(w, "error", map[string]interface{}{
-				"message": "parameters failed to set",
+			jsonResponse(w, "fail", map[string]interface{}{
+				"message": err.Error(),
 			})
 		}
-		jsonResponse(w, "success", map[string]interface{}{
-			"message": "parameter accepted",
-		})
+		// get the ssh addresses
+		sshAddresses := requestJSON["sshAddresses"].(map[int]string)
+		// update state
+		state.SetSSHAddresses(sshAddresses)
+		// use the ssh addresses to generate a .ssh/config file
+		container.WriteSSHConfig(sshAddresses)
+		// the json schema should ensure that these are the only possibilities
 	}
 }

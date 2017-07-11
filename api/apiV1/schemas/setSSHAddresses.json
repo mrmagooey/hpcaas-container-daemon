@@ -1,0 +1,16 @@
+{
+  "type": "object",
+  "properties": {
+    "sshAddresses": {
+      "description": "Keys are container ids and values are the <ip>:<port> strings",
+      "type": "object",
+      "patternProperties": {
+        "^\\d+$": {"type": "string"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "sshAddresses"
+  ]
+}

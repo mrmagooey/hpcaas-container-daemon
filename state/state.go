@@ -1,20 +1,15 @@
 package state
 
 import "sync"
-import "bytes"
-import "fmt"
-import "io/ioutil"
-import "encoding/json"
-
-var parameterJSONPath = "/hpcaas/parameters/parameters.json"
-var parameterPath = "/hpcaas/parameters/parameters"
 
 // contains a name of the port, what the container is binding today
+type portMapping map[int]string
+
 // and what the address:port is for every other container
 type extraPort struct {
 	InternalPort           int
 	Name                   string
-	ExternalContainerPorts map[int]string
+	ExternalContainerPorts portMapping
 }
 
 const (
@@ -41,6 +36,7 @@ type StateStruct struct {
 	CodeName         string
 	CodeState        uint8
 	ResultState      uint8
+	SSHAddresses     portMapping
 }
 
 var state = StateStruct{rw: &sync.RWMutex{}}
@@ -70,6 +66,7 @@ func GetCodeState() uint8 {
 }
 
 // merge two map[string]interface{}'s
+// second argument overrides the first
 func mergeCodeParams(original map[string]interface{}, second map[string]interface{}) map[string]interface{} {
 	updated := make(map[string]interface{})
 	for k, v := range original {
@@ -85,32 +82,13 @@ func SetCodeParams(params map[string]interface{}) error {
 	state.rw.Lock()
 	defer state.rw.Unlock()
 	state.CodeParams = mergeCodeParams(state.CodeParams, params)
-	err := writeCodeParams()
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
-// write code param state to disk
-func writeCodeParams() error {
-	// write json
-	newJSON, err := json.Marshal(state.CodeParams)
-	if err != nil {
-		return err
-	}
-	ioutil.WriteFile(parameterJSONPath, newJSON, 0777)
-	if err != nil {
-		return err
-	}
-	// write newline separated file
-	var buffer bytes.Buffer
-	for k, v := range state.CodeParams {
-		envLine := fmt.Sprintf("%s=%v\n", k, v)
-		buffer.WriteString(envLine)
-	}
-	ioutil.WriteFile(parameterPath, buffer.Bytes(), 0777)
-	return nil
+func GetCodeParams() map[string]interface{} {
+	state.rw.RLock()
+	defer state.rw.RUnlock()
+	return state.CodeParams
 }
 
 func SetContainerParams(params map[string]interface{}) error {
@@ -124,4 +102,11 @@ func SetSharedFileSystem(fs bool) {
 
 func SetExtraPorts(ports []extraPort) {
 
+}
+
+func SetSSHAddresses(addrs map[int]string) error {
+	state.rw.Lock()
+	defer state.rw.Unlock()
+	state.SSHAddresses = addrs
+	return nil
 }
