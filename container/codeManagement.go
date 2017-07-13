@@ -9,9 +9,6 @@ import "errors"
 // the process command struct
 var cmd = &exec.Cmd{}
 
-// calls the hpc code and blocks until the HPC code finishes
-// https://stackoverflow.com/questions/10385551/get-exit-code-go
-// http://www.darrencoxall.com/golang/executing-commands-in-go/
 func ExecuteCode() error {
 	// check that we aren't already running
 	if state.GetCodeState() != state.CODE_WAITING {
@@ -25,6 +22,13 @@ func ExecuteCode() error {
 		return errors.New("Code executable is missing")
 	}
 	cmd = exec.Command(codePath)
+	// get the environment variables
+	codeParams := state.GetCodeParams()
+	var envVars []string
+	for key, val := range codeParams {
+		envVars = append(envVars, key+val.(string))
+	}
+	cmd.Env = envVars
 	// start the code
 	if err := cmd.Start(); err != nil {
 		state.SetCodeState(state.CODE_ERROR)
@@ -36,6 +40,9 @@ func ExecuteCode() error {
 	return nil
 }
 
+// blocks until the HPC code finishes
+// https://stackoverflow.com/questions/10385551/get-exit-code-go
+// http://www.darrencoxall.com/golang/executing-commands-in-go/
 func watchCmd() {
 	// block on calling the code
 	if err := cmd.Wait(); err != nil {
