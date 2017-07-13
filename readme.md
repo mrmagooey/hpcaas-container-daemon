@@ -37,10 +37,7 @@ Once the container has started, the daemon will be listening for configuration i
 
 ### Running Code
 
-When given the `start` command the daemon will run /code. When a HPCaaS container is created, the HPC code will need to be COPY'ed to this location, as per the container template instructions. This executable does not need to be the executable itself, i.e. it can be a shell script that calls the actual process. The daemon will track both the PID of the executable at /code, and any child processes that it spawns. If any of these processes exits with a non-zero exit code, the daemon will assume there has been an error and will:
-
-1. If they aren't already dead, kill the parent (whatever was at /code), and any child processes.
-1. Update the code status to be Error.
+When given the `start` command the daemon will run `/hpcaas/code/<hpc code name>`. When a HPCaaS container is created, the HPC code will need to be COPY'ed to this location, as per the container template instructions. This executable does not need to be the executable itself, i.e. it can be a shell script that calls the actual process. However, whatever the executable at  `/hpcaas/code/<hpc code name>` returns will be what the deamon is monitoring. If a non-zero exit code is returned from this executable, the daemon will assume there has been an error and will update the containers code status to `error`.
 
 ### Container states
 
@@ -74,95 +71,29 @@ There are several states that the daemon tracks the container as having.
 
 
 ## HTTPS Endpoints
+### API V1
 
-### Responses
+The json schemas are located in `api/apiv1/schemas`.
 
-All https endpoints will respond with http response code 200 and a simple JSend schema of:
+*POST /v<api version>/code-parameters*
 
-    {
-      type: "object",
-      properties: {
-        status: {
-          "enum" : ["success", "error", "fail"]
-        },
-        data: {
-          properties: {
-            type: {}
-          }
-        }
-      },
-      required: ["status", "data"]
-    }
+The user can supply configuration to the container. This will consist of either key value pairs or files. 
 
-### Code Configuration
+Once configuration items in key-value format are received:
 
-The user can supply configuration to the container. This will consist of either key value pairs or files.
+1. A json file at `/hpcaas/parameters/parameters.json` will be updated with the new parameter/s
+1. A newline separated file at `/hpcaas/parameters/parameters` will be updated with the new parameter/s
+1. If the code is not already running, when it is run this parameter will be in its environment variables under the prefix HPCAAS_.
 
-The daemon listens for configuration items at:
+*POST /v1/code-parameter-file*
 
-    POST /v1/code-configuration
+The user can supply files to the container. These files can be any size or type. Setting the Content-Type to `multipart/form-data`, the deamon  will expect a body containing one or more files. Once received it will be moved to /hpcaas/files/<file-name>, and made world readable and writable.
 
-If the Content-Type is `application/json`, it will expect a body containing a JSON object with the following json schema.
+*POST /v1/daemon-configuration*
 
-    {
-      type: "object",
-      properties: {
-        codeParameters: {
-          description: "A list of configuration items that the code will use",
-          type: "array",
-          items: {
-            type: "object",
-            description: "A configuration item",
-            properties: {
-              key: { type: "string" },
-              value: {}
-            }
-          }
-        }
-      }
-    }
+Configuration for the daemon. Where code configuration will accept any combination of key and value, the daemon only accepts specific configuration items, and will ignore those that it does not recognise as valid.
 
-If the Content-Type is `multipart/form-data`, it will expect a body containing one or more files. 
-
-Once configuration items in key-value format are received two things will happen:
-
-1. An `export` call with the environment variables will be added to .bashrc.
-1. The environment variable will be appended to /hpcaas/variables, a world readable and writable file.
-
-If a configuration file is received it will be moved to /hpcaas/files/<file-name>, and made world readable and writable.
-
-### Daemon Configuration
-
-The for configuration elements related to the daemon or container, and not directly to the code being run, the daemon will listen on:
-
-    POST /v1/daemon-configuration
-    
-If the Content-Type is `application/json`, it will expect a body containing a JSON object with the following json schema.
-
-    {
-      daemonParameters: {
-        description: "A list of configuration items for the daemon",
-        type: "array",
-        items: {
-          type: "object",
-          description: "A configuration item",
-          properties: {
-            key: { type: "string" },
-            value: {}
-          }
-        }
-      }
-    }
-
-If the Content-Type is `multipart/form-data`, it will expect a body containing one or more files.
-
-Where code configuration will accept any combination of key and value, the daemon only accepts specific configuration items, and will ignore those that it does not recognise as valid.
-
-### Receive commands
-
-The daemon will listen for commands on:
-
-    POST /v1/command
+*POST /v1/command*
 
 The commands it can receive are:
 
@@ -173,21 +104,7 @@ The commands it can receive are:
 
 It will expect a JSON schema as follows:
 
-    {
-      type: "object",
-      properties: {
-        command: {
-          type: "string",
-          value: { type: "string"}
-        }
-      }
-    }
-
-### Respond to queries
-
-The daemon will respond to query requests on:
-
-    GET /v1/query
+*GET /v1/query*
 
 To which it will provide information about the running code and container:
 
