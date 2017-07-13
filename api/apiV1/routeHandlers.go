@@ -85,7 +85,7 @@ func SetCodeConfig() func(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 		// write to disk
-		err = container.WriteCodeParams()
+		err = container.WriteCodeParams(params)
 		if err != nil {
 			jsonResponse(w, "error", map[string]interface{}{
 				"message": "parameters failed to set",
