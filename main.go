@@ -10,11 +10,11 @@ import (
 var STARTUP_FILE = "/hpcaas/daemon/daemon_has_started"
 var TLS_CERT_FILE = "/hpcaas/daemon/tls_server.crt"
 var TLS_KEY_FILE = "/hpcaas/daemon/tls_server.key"
-var AUTHORIZATION = "/hpcaas/daemon/AUTHORIZATION"
+var AUTHORIZATION = "/hpcaas/daemon/authorization"
 
 // run once at container startup
-// pull tls information out of environment variables and save to disk
-func setup_tls_info() {
+// pull comm information out of environment variables and save to disk
+func setupTLSInfo() {
 	tls_public_cert, envErr := os.LookupEnv("TLS_PUBLIC_CERT")
 	if envErr == false {
 		panic("TLS certificate is missing from environment variables")
@@ -55,7 +55,8 @@ func startup() {
 		// daemon has already started previously, rehydrate state from disk
 		state.RehydrateFromDisk()
 	}
-	setup_tls_info()
+	// probably safer to do the tls info again regardless of previous startup
+	setupTLSInfo()
 }
 
 func main() {
