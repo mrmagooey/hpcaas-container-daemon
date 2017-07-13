@@ -1,28 +1,65 @@
 package main
 
 import (
+	"github.com/mrmagooey/hpcaas-container-daemon/state"
 	"io/ioutil"
 	"net/http"
 	"os"
 )
 
+var STARTUP_FILE = "/hpcaas/daemon/daemon_has_started"
+var TLS_CERT_FILE = "/hpcaas/daemon/tls_server.crt"
+var TLS_KEY_FILE = "/hpcaas/daemon/tls_server.key"
+var AUTHORIZATION = "/hpcaas/daemon/AUTHORIZATION"
+
 // run once at container startup
-// pull tls information out of environment variables
-func setup_tls_info() bool {
-	tls_public_cert, setup_err := os.LookupEnv("TLS_PUBLIC_CERT")
-	tls_private_key, setup_err := os.LookupEnv("TLS_PRIVATE_KEY")
-	auth_key, setup_err := os.LookupEnv("AUTHORIZATION")
-	write_err := ioutil.WriteFile("/hpcaas/daemon/tls_server.crt", []byte(tls_public_cert), 0300)
-	write_err = ioutil.WriteFile("/hpcaas/daemon/tls_server.key", []byte(tls_private_key), 0300)
-	write_err = ioutil.WriteFile("/hpcaas/daemon/AUTHORIZATION", []byte(auth_key), 0300)
-	if write_err != nil {
-		setup_err = true
+// pull tls information out of environment variables and save to disk
+func setup_tls_info() {
+	tls_public_cert, envErr := os.LookupEnv("TLS_PUBLIC_CERT")
+	if envErr == false {
+		panic("TLS certificate is missing from environment variables")
 	}
-	return setup_err
+	tls_private_key, envErr := os.LookupEnv("TLS_PRIVATE_KEY")
+	if envErr == false {
+		panic("TLS key is missing from environment variables")
+	}
+	auth_key, envErr := os.LookupEnv("AUTHORIZATION")
+	if envErr == false {
+		panic("authorization is missing from environment variables")
+	}
+	err := ioutil.WriteFile(TLS_CERT_FILE, []byte(tls_public_cert), 0300)
+	if err != nil {
+		panic("Couldn't save tls server certificate to disk")
+	}
+	err = ioutil.WriteFile(TLS_KEY_FILE, []byte(tls_private_key), 0300)
+	if err != nil {
+		panic("Couldn't save tls server key to disk")
+	}
+	state.SetAuthorizationKey(auth_key)
+}
+
+// check if this is the first time that the daemon has started up
+// if the daemon was previously running
+func startup() {
+	if _, err := os.Stat(STARTUP_FILE); err != nil {
+		// startup file doesn't exist, this is the first time the daemon has started
+		f, err := os.Create(STARTUP_FILE)
+		if err != nil {
+			panic("Couldn't write startup file")
+		}
+		err = f.Close()
+		if err != nil {
+			panic("Couldn't close startup file")
+		}
+	} else {
+		// daemon has already started previously, rehydrate state from disk
+		state.RehydrateFromDisk()
+	}
+	setup_tls_info()
 }
 
 func main() {
-	// setup http endpoint
+	startup()
 	r := register_routes()
-	http.Handle("/", r)
+	http.ListenAndServeTLS(":443", TLS_CERT_FILE, TLS_KEY_FILE, r)
 }
