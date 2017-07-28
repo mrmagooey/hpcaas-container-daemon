@@ -3,6 +3,7 @@ package state
 import "sync"
 import "encoding/json"
 import "io/ioutil"
+import "fmt"
 
 var stateFile = "/hpcaas/daemon/state.json"
 
@@ -15,6 +16,12 @@ type extraPort struct {
 	Name                   string
 	ExternalContainerPorts portMapping
 }
+
+const (
+	DAEMON_STARTED uint8 = iota + 1
+	DAEMON_RUNNING
+	DAEMON_ERROR
+)
 
 const (
 	CODE_WAITING uint8 = iota + 1
@@ -32,10 +39,6 @@ const (
 	RESULT_ERROR
 )
 
-type url struct {
-	address string
-}
-
 type StateStruct struct {
 	rw               *sync.RWMutex
 	CodeParams       map[string]interface{} `json:"codeParams"`
@@ -43,18 +46,30 @@ type StateStruct struct {
 	ExtraPorts       []extraPort            `json:"extraPorts"`
 	CodeName         string                 `json:"codeName"`
 	CodeState        uint8                  `json:"codeState"`
+	DaemonState      uint8                  `json:"daemonState"`
 	ResultState      uint8                  `json:"resultState"`
 	SSHAddresses     portMapping            `json:"sshAddresses"`
-	AuthorizationKey string                 `json:"authorizationKey"`
 	WorldRank        int                    `json:"worldRank"`
 	WorldSize        int                    `json:"worldSize"`
 	ResultsDirectory string                 `json:"resultsDirectory"`
-	ResultsUrl       url                    `json:"resultsUrl"`
+	ResultsUrl       string                 `json:"resultsUrl"`
+	CodeExitStatus   int                    `json:"codeExitStatus"`
 }
 
-var state = StateStruct{rw: &sync.RWMutex{}}
+// set defaults
+var state = StateStruct{
+	rw:               &sync.RWMutex{},
+	SharedFileSystem: false,
+	CodeName:         "hpc-code",
+	CodeState:        CODE_WAITING,
+	DaemonState:      DAEMON_STARTED,
+	ResultState:      RESULT_WAITING,
+	ResultsDirectory: "/hpcaas/results",
+}
 
-func StateJson() []byte {
+func GetStateJson() []byte {
+	state.rw.RLock()
+	defer state.rw.RUnlock()
 	sj, _ := json.Marshal(state)
 	return sj
 }
@@ -66,9 +81,10 @@ var dehydrateMut = sync.Mutex{}
 func dehydrateToDisk() {
 	dehydrateMut.Lock()
 	defer dehydrateMut.Unlock()
-	err := ioutil.WriteFile(stateFile, StateJson(), 777)
+	err := ioutil.WriteFile(stateFile, GetStateJson(), 777)
+	fmt.Println("fuck")
 	if err != nil {
-		//TODO
+		panic("Can't write dehydrate file to disk")
 	}
 }
 
@@ -89,8 +105,8 @@ func RehydrateFromDisk() {
 func SetCodeName(name string) {
 	state.rw.Lock()
 	defer state.rw.Unlock()
-	go dehydrateToDisk()
 	state.CodeName = name
+	go dehydrateToDisk()
 }
 
 func GetCodeName() string {
@@ -102,8 +118,8 @@ func GetCodeName() string {
 func SetCodeState(codeState uint8) {
 	state.rw.Lock()
 	defer state.rw.Unlock()
-	go dehydrateToDisk()
 	state.CodeState = codeState
+	go dehydrateToDisk()
 }
 
 func GetCodeState() uint8 {
@@ -129,6 +145,7 @@ func SetCodeParams(params map[string]interface{}) error {
 	state.rw.Lock()
 	defer state.rw.Unlock()
 	state.CodeParams = mergeCodeParams(state.CodeParams, params)
+	go dehydrateToDisk()
 	return nil
 }
 
@@ -143,31 +160,10 @@ func SetContainerParams(params map[string]interface{}) error {
 	return nil
 }
 
-func SetSharedFileSystem(fs bool) {
-
-}
-
-func SetExtraPorts(ports []extraPort) {
-
-}
-
-func SetAuthorizationKey(key string) {
-	state.rw.Lock()
-	defer state.rw.Unlock()
-	go dehydrateToDisk()
-	state.AuthorizationKey = key
-}
-
 func SetSSHAddresses(addrs map[int]string) error {
 	state.rw.Lock()
 	defer state.rw.Unlock()
-	go dehydrateToDisk()
 	state.SSHAddresses = addrs
+	go dehydrateToDisk()
 	return nil
-}
-
-func GetAuthorizationKey() string {
-	state.rw.RLock()
-	defer state.rw.RUnlock()
-	return state.AuthorizationKey
 }

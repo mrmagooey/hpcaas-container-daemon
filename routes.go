@@ -3,7 +3,7 @@ package main
 import "github.com/mrmagooey/hpcaas-container-daemon/api/apiV1"
 import "github.com/gorilla/mux"
 
-func register_routes() *mux.Router {
+func registerRoutes() *mux.Router {
 	r := mux.NewRouter()
 	v1_subroute := r.PathPrefix("/v1").Subrouter()
 	v1_subroute.Schemes("https")
