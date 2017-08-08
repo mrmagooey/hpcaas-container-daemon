@@ -3,18 +3,20 @@ package state
 import "sync"
 import "encoding/json"
 import "io/ioutil"
-import "fmt"
+
+// import "os/exec"
+// import "reflect"
 
 var stateFile = "/hpcaas/daemon/state.json"
 
 // contains a name of the port, what the container is binding today
-type portMapping map[int]string
+type ContainerAddresses map[int]string
 
 // and what the address:port is for every other container
 type extraPort struct {
 	InternalPort           int
 	Name                   string
-	ExternalContainerPorts portMapping
+	ExternalContainerPorts ContainerAddresses
 }
 
 const (
@@ -29,6 +31,7 @@ const (
 	CODE_RUNNING
 	CODE_STOPPED
 	CODE_KILLED
+	CODE_FAILED_TO_KILL
 	CODE_ERROR
 )
 
@@ -40,92 +43,107 @@ const (
 )
 
 type StateStruct struct {
-	rw               *sync.RWMutex
 	CodeParams       map[string]interface{} `json:"codeParams"`
 	SharedFileSystem bool                   `json:"sharedFileSystem"`
 	ExtraPorts       []extraPort            `json:"extraPorts"`
 	CodeName         string                 `json:"codeName"`
+	CodeArguments    []string               `json:"codeArguments"`
 	CodeState        uint8                  `json:"codeState"`
 	DaemonState      uint8                  `json:"daemonState"`
 	ResultState      uint8                  `json:"resultState"`
-	SSHAddresses     portMapping            `json:"sshAddresses"`
+	SSHAddresses     ContainerAddresses     `json:"sshAddresses"`
 	WorldRank        int                    `json:"worldRank"`
 	WorldSize        int                    `json:"worldSize"`
 	ResultsDirectory string                 `json:"resultsDirectory"`
 	ResultsUrl       string                 `json:"resultsUrl"`
 	CodeExitStatus   int                    `json:"codeExitStatus"`
+	AuthorizationKey string                 `json:"authorizationKey"`
+	CodeStdout       string
+	CodeStderr       string
+	ErrorMessages    []string
+	CodePID          int
 }
 
 // set defaults
-var state = StateStruct{
-	rw:               &sync.RWMutex{},
-	SharedFileSystem: false,
-	CodeName:         "hpc-code",
-	CodeState:        CODE_WAITING,
-	DaemonState:      DAEMON_STARTED,
-	ResultState:      RESULT_WAITING,
-	ResultsDirectory: "/hpcaas/results",
+var daemonState = StateStruct{}
+var stateRWMutex = sync.RWMutex{}
+
+// resets the state of the daemonState to a set of default values
+func InitState() {
+	stateRWMutex.Lock()
+	daemonState = StateStruct{
+		SharedFileSystem: false,
+		CodeName:         "hpc-code",
+		CodeState:        CODE_WAITING,
+		DaemonState:      DAEMON_STARTED,
+		ResultState:      RESULT_WAITING,
+		ResultsDirectory: "/hpcaas/results",
+	}
+	stateRWMutex.Unlock()
+}
+
+func init() {
+	InitState()
 }
 
 func GetStateJson() []byte {
-	state.rw.RLock()
-	defer state.rw.RUnlock()
-	sj, _ := json.Marshal(state)
+	stateRWMutex.RLock()
+	defer stateRWMutex.RUnlock()
+	sj, _ := json.Marshal(daemonState)
 	return sj
 }
 
 var dehydrateMut = sync.Mutex{}
 
-// saves the state to disk, is thread-safe
+// saves the daemonState to disk, is thread-safe
 // used as a recovery strategy if the daemon has been killed or crashed
 func dehydrateToDisk() {
 	dehydrateMut.Lock()
 	defer dehydrateMut.Unlock()
 	err := ioutil.WriteFile(stateFile, GetStateJson(), 777)
-	fmt.Println("fuck")
 	if err != nil {
 		panic("Can't write dehydrate file to disk")
 	}
 }
 
-// reads from the state.json file on disk and recreates the internal state of the daemon
+// reads from the state.json file on disk and recreates the internal daemonState of the daemon
 // used as a recovery strategy if the daemon has been killed or crashed
 // best-effort attempt, if the file is bad or missing this function not complain
 func RehydrateFromDisk() {
 	file, err := ioutil.ReadFile(stateFile)
 	if err != nil {
 		// the file doesn't exist or is unreadable
-		// could happen if the daemon previously started but didn't manage to write any state
+		// could happen if the daemon previously started but didn't manage to write any daemonState
 	}
-	if e := json.Unmarshal(file, state); e != nil {
-		// the file has been corrupted
+	if e := json.Unmarshal(file, daemonState); e != nil {
+		// TODO the file has been corrupted
 	}
 }
 
 func SetCodeName(name string) {
-	state.rw.Lock()
-	defer state.rw.Unlock()
-	state.CodeName = name
+	stateRWMutex.Lock()
+	defer stateRWMutex.Unlock()
+	daemonState.CodeName = name
 	go dehydrateToDisk()
 }
 
 func GetCodeName() string {
-	state.rw.RLock()
-	defer state.rw.RUnlock()
-	return state.CodeName
+	stateRWMutex.RLock()
+	defer stateRWMutex.RUnlock()
+	return daemonState.CodeName
 }
 
 func SetCodeState(codeState uint8) {
-	state.rw.Lock()
-	defer state.rw.Unlock()
-	state.CodeState = codeState
+	stateRWMutex.Lock()
+	defer stateRWMutex.Unlock()
+	daemonState.CodeState = codeState
 	go dehydrateToDisk()
 }
 
 func GetCodeState() uint8 {
-	state.rw.RLock()
-	defer state.rw.RUnlock()
-	return state.CodeState
+	stateRWMutex.RLock()
+	defer stateRWMutex.RUnlock()
+	return daemonState.CodeState
 }
 
 // merge two map[string]interface{}'s
@@ -141,29 +159,118 @@ func mergeCodeParams(original map[string]interface{}, second map[string]interfac
 	return updated
 }
 
+// merge new params with existing params, overwriting as necessary
+func UpdateCodeParams(params map[string]interface{}) error {
+	stateRWMutex.Lock()
+	defer stateRWMutex.Unlock()
+	daemonState.CodeParams = mergeCodeParams(daemonState.CodeParams, params)
+	go dehydrateToDisk()
+	return nil
+}
+
+// overwrite all params with new params
 func SetCodeParams(params map[string]interface{}) error {
-	state.rw.Lock()
-	defer state.rw.Unlock()
-	state.CodeParams = mergeCodeParams(state.CodeParams, params)
+	stateRWMutex.Lock()
+	defer stateRWMutex.Unlock()
+	daemonState.CodeParams = params
 	go dehydrateToDisk()
 	return nil
 }
 
 func GetCodeParams() map[string]interface{} {
-	state.rw.RLock()
-	defer state.rw.RUnlock()
-	return state.CodeParams
+	stateRWMutex.RLock()
+	defer stateRWMutex.RUnlock()
+	return daemonState.CodeParams
 }
 
-func SetContainerParams(params map[string]interface{}) error {
-
-	return nil
-}
-
-func SetSSHAddresses(addrs map[int]string) error {
-	state.rw.Lock()
-	defer state.rw.Unlock()
-	state.SSHAddresses = addrs
+func SetSSHAddresses(addrs ContainerAddresses) error {
+	stateRWMutex.Lock()
+	defer stateRWMutex.Unlock()
+	daemonState.SSHAddresses = addrs
 	go dehydrateToDisk()
 	return nil
+}
+
+func GetSSHAddresses() ContainerAddresses {
+	stateRWMutex.RLock()
+	defer stateRWMutex.RUnlock()
+	return daemonState.SSHAddresses
+}
+
+func SetAuthorizationKey(key string) error {
+	stateRWMutex.Lock()
+	defer stateRWMutex.Unlock()
+	daemonState.AuthorizationKey = key
+	go dehydrateToDisk()
+	return nil
+}
+
+func SetCodeKey(key string) error {
+	stateRWMutex.Lock()
+	defer stateRWMutex.Unlock()
+	daemonState.AuthorizationKey = key
+	go dehydrateToDisk()
+	return nil
+}
+
+func SetCodeArguments(args []string) error {
+	stateRWMutex.Lock()
+	defer stateRWMutex.Unlock()
+	daemonState.CodeArguments = args
+	go dehydrateToDisk()
+	return nil
+}
+
+func GetCodeArguments() []string {
+	stateRWMutex.RLock()
+	defer stateRWMutex.RUnlock()
+	return daemonState.CodeArguments
+}
+
+func SetCodeStdout(stdout string) {
+	stateRWMutex.Lock()
+	defer stateRWMutex.Unlock()
+	daemonState.CodeStdout = stdout
+}
+
+func GetCodeStdout() string {
+	stateRWMutex.RLock()
+	defer stateRWMutex.RUnlock()
+	return daemonState.CodeStdout
+}
+
+func SetCodeStderr(stderr string) {
+	stateRWMutex.Lock()
+	defer stateRWMutex.Unlock()
+	daemonState.CodeStderr = stderr
+}
+
+func GetCodeStderr() string {
+	stateRWMutex.RLock()
+	defer stateRWMutex.RUnlock()
+	return daemonState.CodeStderr
+}
+
+func AddErrorMessage(err string) {
+	stateRWMutex.Lock()
+	defer stateRWMutex.Unlock()
+	daemonState.ErrorMessages = append(daemonState.ErrorMessages, err)
+}
+
+func GetErrorMessages() []string {
+	stateRWMutex.RLock()
+	defer stateRWMutex.RUnlock()
+	return daemonState.ErrorMessages
+}
+
+func SetCodePID(pid int) {
+	stateRWMutex.Lock()
+	defer stateRWMutex.Unlock()
+	daemonState.CodePID = pid
+}
+
+func GetCodePID() int {
+	stateRWMutex.RLock()
+	defer stateRWMutex.RUnlock()
+	return daemonState.CodePID
 }

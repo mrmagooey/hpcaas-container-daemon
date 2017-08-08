@@ -3,19 +3,35 @@ package state
 import "testing"
 import "github.com/stretchr/testify/assert"
 
-func TestState(t *testing.T) {
+var codeName = "ls"
+var codeState = CODE_MISSING
+
+var codeArgs = []string{"hi", "world"}
+
+var params = map[string]interface{}{
+	"blah":  1,
+	"stuff": 2,
+}
+
+var sshAddrs = ContainerAddresses{
+	1: "255.255.255.255",
+	2: "255.255.255.255",
+}
+
+func TestGetAndSetState(t *testing.T) {
 	assert := assert.New(t)
-	SetCodeState(CODE_MISSING)
-	SetCodeName("ls")
-	SetCodeParams(map[string]interface{}{
-		"blah":  1,
-		"stuff": 2,
-	})
-	assert.Equal(state.CodeState, CODE_MISSING)
-	assert.Equal(state.CodeName, "ls")
-	assert.Equal(state.CodeParams, map[string]interface{}{
-		"blah":  1,
-		"stuff": 2,
-	})
+	SetCodeState(codeState)
+	SetCodeName(codeName)
+	SetCodeParams(params)
+	SetSSHAddresses(sshAddrs)
+	SetCodeArguments(codeArgs)
+	assert.Equal(codeState, GetCodeState())
+	assert.Equal(codeName, GetCodeName())
+	assert.Equal(params, GetCodeParams())
+	assert.Equal(sshAddrs, GetSSHAddresses())
+	assert.Equal(codeArgs, GetCodeArguments())
+}
+
+func TestHydration(t *testing.T) {
 
 }
