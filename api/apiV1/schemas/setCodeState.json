@@ -3,7 +3,7 @@
   "properties": {
     "codeState": {
       "description": "Name of the code to be executed",
-      "type": "string"
+      "type": "number"
     }
   },
   "required": [
