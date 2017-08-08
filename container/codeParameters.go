@@ -27,7 +27,7 @@ func writeCodeParams() {
 			returnChan <- err
 			return
 		}
-		ioutil.WriteFile(parameterJSONPath, newJSON, 0777)
+		err = ioutil.WriteFile(parameterJSONPath, newJSON, 0777)
 		if err != nil {
 			returnChan <- err
 			return
