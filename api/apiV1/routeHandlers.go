@@ -22,6 +22,7 @@ func getJSONValidator(schemaFilename string) *jsval.JSVal {
 	// json schema validation
 	s, err := schema.ReadFile(schemaFilename)
 	if err != nil {
+		fmt.Println(err)
 		panic(fmt.Sprintf("Failed to open %s", schemaFilename))
 	}
 	b := builder.New()
@@ -87,6 +88,8 @@ func SetCodeConfig() func(w http.ResponseWriter, r *http.Request) {
 		// write to disk
 		err = container.WriteCodeParams(params)
 		if err != nil {
+			fmt.Println("error: ")
+			fmt.Println(err)
 			jsonResponse(w, "error", map[string]interface{}{
 				"message": "parameters failed to set",
 			})
@@ -129,9 +132,9 @@ func SetCodeState() func(w http.ResponseWriter, r *http.Request) {
 				"message": err.Error(),
 			})
 		}
-		params := requestJSON["containerParameters"].(map[string]interface{})
+		codeState := requestJSON["codeState"].(uint8)
 		// send to state
-		err = state.SetContainerParams(params)
+		state.SetCodeState(codeState)
 		if err != nil {
 			jsonResponse(w, "error", map[string]interface{}{
 				"message": "parameters failed to set",

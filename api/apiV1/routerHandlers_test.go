@@ -8,7 +8,7 @@ import (
 )
 
 func TestSetCodeConfigurationV1_POST(t *testing.T) {
-	var jsonStr = []byte(`{"codeParameters":[{"key":"foo", "value":"bar"}, {"key":"hello", "value": "world"}]}`)
+	var jsonStr = []byte(`{"codeParameters":{"foo":"bar", "hello":"value"}}`)
 	req, err := http.NewRequest("POST", "/", bytes.NewBuffer(jsonStr))
 	if err != nil {
 		t.Fatal(err)
@@ -22,7 +22,7 @@ func TestSetCodeConfigurationV1_POST(t *testing.T) {
 	}
 
 	// Check the response body is what we expect.
-	expected := `{"status": "success", "data":{"message":"parameter accepted"}}`
+	expected := `{"status":"success","data":{"message":"parameter accepted"}}`
 	if rr.Body.String() != expected {
 		t.Errorf("handler returned unexpected body: got %v want %v",
 			rr.Body.String(), expected)
