@@ -14,8 +14,7 @@ var STARTUP_FILE = "/hpcaas/daemon/daemon_has_started"
 var TLS_CLIENT_CRT = "/hpcaas/daemon/tls_client.crt"
 var TLS_CERT_FILE = "/hpcaas/daemon/tls_server.crt"
 var TLS_KEY_FILE = "/hpcaas/daemon/tls_server.key"
-
-// var AUTHORIZATION = "/hpcaas/daemon/authorization"
+var AUTHORIZATION = "/hpcaas/daemon/authorization"
 
 // run once at container startup
 // pull comm information out of environment variables and save to disk
@@ -28,10 +27,10 @@ func setupTLSInfo() {
 	if envErr == false {
 		panic("TLS key is missing from environment variables")
 	}
-	// auth_key, envErr := os.LookupEnv("AUTHORIZATION")
-	// if envErr == false {
-	// 	panic("authorization is missing from environment variables")
-	// }
+	auth_key, envErr := os.LookupEnv("AUTHORIZATION")
+	if envErr == false {
+		panic("authorization is missing from environment variables")
+	}
 	tls_client_crt, envErr := os.LookupEnv("TLS_CLIENT_CRT")
 	if envErr == false {
 		panic("TLS certificate is missing from environment variables")
@@ -48,7 +47,7 @@ func setupTLSInfo() {
 	if err != nil {
 		panic("Couldn't save tls server key to disk")
 	}
-	// state.SetAuthorizationKey(auth_key)
+	state.SetAuthorizationKey(auth_key)
 }
 
 // check if this is the first time that the daemon has started up
