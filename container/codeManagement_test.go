@@ -12,13 +12,15 @@ var TEST_ENV_VAR = "HPCAAS_DAEMON_TEST_CONTAINER"
 
 func TestParent(t *testing.T) {
 	fmt.Println("")
-	t.Run("", _testExecuteLs)
-	t.Run("", _testStdout)
-	t.Run("", _testExecuteSleep)
-	t.Run("", _testCodeAlreadyStarted)
-	t.Run("", _testCodeMissing)
-	t.Run("", _testEnvVars)
-	t.Run("", _testKillCode)
+	t.Run("_testExecuteLs", _testExecuteLs)
+	t.Run("_testStdout", _testStdout)
+	t.Run("_testExecuteSleep", _testExecuteSleep)
+	t.Run("_testCodeAlreadyStarted", _testCodeAlreadyStarted)
+	t.Run("_testCodeMissing", _testCodeMissing)
+	t.Run("_testEnvVars", _testEnvVars)
+	t.Run("_testKillCode", _testKillCode)
+	t.Run("_testCodeStartsThenReturnsError", _testCodeStartsThenReturnsError)
+	t.Run("_testCodeFailToStart", _testCodeFailToStart)
 }
 
 // test that a binary can be successfully started
@@ -137,9 +139,8 @@ func _testEnvVars(t *testing.T) {
 	assert.Equal("hello=world\n", state.GetCodeStdout())
 }
 
-// test that we can give environment variables to our binaries
+// test that we can kill a running binary
 func _testKillCode(t *testing.T) {
-	// test that a started binary can have its return
 	assert := assert.New(t)
 	state.InitState()
 	// reset code state from any other tests
@@ -154,22 +155,57 @@ func _testKillCode(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	for i := 0; i < 10; i++ {
-		time.Sleep(1 * time.Second)
-	}
 	// wait till it starts
 	time.Sleep(100 * time.Millisecond)
 	assert.Equal(state.CODE_RUNNING, state.GetCodeState())
-	fmt.Println("before KillCode")
+	// kill it
 	if err := KillCode(); err != nil {
 		t.Error(err)
 		return
 	}
+	// TODO parse the process tree to check that we are actually killing the process
 	// wait till it dies
 	time.Sleep(100 * time.Millisecond)
-
 	assert.Equal(state.CODE_KILLED, state.GetCodeState())
-	fmt.Println("testKillCodeFinished")
+}
+
+func _testCodeStartsThenReturnsError(t *testing.T) {
+	// test that a started binary can have its return
+	assert := assert.New(t)
+	state.InitState()
+	// reset code state from any other tests
+	if err := os.Symlink("/bin/bash", "/hpcaas/code/bash"); err != nil {
+		t.Error(err)
+	}
+	defer os.Remove("/hpcaas/code/bash")
+	state.SetCodeName("bash")
+	state.SetCodeArguments([]string{"-c \"sleep 1 && exit 1\""})
+	assert.Equal(state.CODE_WAITING, state.GetCodeState())
+	err := ExecuteCode()
+	if err != nil {
+		t.Error(err)
+	}
+	assert.Equal(state.CODE_RUNNING, state.GetCodeState())
+	// wait till it errors out
+	time.Sleep(1 * time.Second)
+	assert.Equal(state.CODE_ERROR, state.GetCodeState())
+}
+
+func _testCodeFailToStart(t *testing.T) {
+	// test that a started binary can have its return
+	assert := assert.New(t)
+	state.InitState()
+	// reset code state from any other tests
+	if err := os.Symlink("/bin/bash", "/hpcaas/code/bash"); err != nil {
+		t.Error(err)
+	}
+	defer os.Remove("/hpcaas/code/bash")
+	state.SetCodeName("bash")
+	// make binary unusable
+	os.Chmod("/hpcaas/code/bash", 0x000)
+	err := ExecuteCode()
+	assert.Error(err)
+	assert.Equal(state.CODE_FAILED_TO_START, state.GetCodeState())
 }
 
 func init() {

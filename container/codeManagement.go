@@ -38,7 +38,7 @@ func ExecuteCode() error {
 	cmd.Stderr = &err
 	// start the code
 	if err := cmd.Start(); err != nil {
-		state.SetCodeState(state.CODE_ERROR)
+		state.SetCodeState(state.CODE_FAILED_TO_START)
 		return errors.New("The code has failed to start")
 	}
 	state.SetCodeState(state.CODE_RUNNING)
@@ -79,7 +79,7 @@ func KillCode() error {
 func watchCmd(cmd *exec.Cmd, out *bytes.Buffer, err *bytes.Buffer) {
 	// block on calling the code
 	if err := cmd.Wait(); err != nil {
-		// the code has died with a return code > 0
+		// the code has died
 		if exiterr, ok := err.(*exec.ExitError); ok {
 			// there is a return code
 			if _, ok := exiterr.Sys().(syscall.WaitStatus); ok {
