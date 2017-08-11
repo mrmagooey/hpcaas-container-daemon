@@ -2,6 +2,9 @@ package state
 
 import "testing"
 import "github.com/stretchr/testify/assert"
+import "os"
+import "io/ioutil"
+import "time"
 
 var codeName = "ls"
 var codeState = CODE_MISSING
@@ -34,5 +37,14 @@ func TestGetAndSetState(t *testing.T) {
 }
 
 func TestHydration(t *testing.T) {
-
+	InitState()
+	assert := assert.New(t)
+	// state file exists
+	_, err := os.Stat(stateFile)
+	assert.NoError(err)
+	// check contents of file
+	SetAuthorizationKey("lol")
+	time.Sleep(10 * time.Millisecond)
+	contents, err := ioutil.ReadFile(stateFile)
+	assert.Contains(string(contents), "\"authorizationKey\":\"lol\"")
 }

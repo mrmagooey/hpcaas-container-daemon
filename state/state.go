@@ -77,6 +77,7 @@ var daemonState = StateStruct{}
 var stateRWMutex = sync.RWMutex{}
 
 // resets the state of the daemonState to a set of default values
+// used for setting state on daemon startup
 func InitState() {
 	stateRWMutex.Lock()
 	daemonState = StateStruct{
@@ -88,6 +89,7 @@ func InitState() {
 		ResultsDirectory: "/hpcaas/results",
 	}
 	stateRWMutex.Unlock()
+	dehydrateToDisk()
 }
 
 func init() {
