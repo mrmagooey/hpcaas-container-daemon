@@ -8,17 +8,18 @@ var codeState = CODE_MISSING
 
 var codeArgs = []string{"hi", "world"}
 
-var params = map[string]interface{}{
-	"blah":  1,
-	"stuff": 2,
+var params = map[string]string{
+	"blah":  "1",
+	"stuff": "2",
 }
 
 var sshAddrs = ContainerAddresses{
-	1: "255.255.255.255",
-	2: "255.255.255.255",
+	1: "255.255.255.255:8000",
+	2: "255.255.255.255:88",
 }
 
 func TestGetAndSetState(t *testing.T) {
+	InitState()
 	assert := assert.New(t)
 	SetCodeState(codeState)
 	SetCodeName(codeName)

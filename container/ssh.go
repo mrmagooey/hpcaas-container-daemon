@@ -4,7 +4,6 @@ import "io/ioutil"
 import "bytes"
 import "fmt"
 import "strings"
-import "errors"
 
 type configRequest struct {
 	Data       map[int]string
@@ -48,11 +47,7 @@ func writeSSHConfig() {
 			buffer.WriteString(portString)
 		}
 		err := ioutil.WriteFile(sshConfigFileLocation, buffer.Bytes(), 0700)
-		if err != nil {
-			responseChan <- errors.New("Fail to write config file")
-		} else {
-			responseChan <- nil
-		}
+		responseChan <- err
 	}
 }
 
@@ -63,30 +58,22 @@ func writePublicKey() {
 		publicKey := req.Data
 		responseChan := req.ReturnChan
 		err := ioutil.WriteFile(sshAuthorizedKeys, []byte(publicKey), 0644)
-		if err != nil {
-			responseChan <- errors.New("Fail to write authorized keys")
-		} else {
-			responseChan <- nil
-		}
+		responseChan <- err
 	}
 }
 
-// writePrivateKey is intended to be used as a gorouinte and writes private key information to the filesystem
+// writePrivateKey is intended to be used as a goroutine and writes private key information to the filesystem
 func writePrivateKey() {
 	for {
 		req := <-sshPrivChan
 		privateKey := req.Data
 		responseChan := req.ReturnChan
 		err := ioutil.WriteFile(sshPrivateKeyLocation, []byte(privateKey), 0600)
-		if err != nil {
-			responseChan <- errors.New("Fail to write private keys")
-		} else {
-			responseChan <- nil
-		}
+		responseChan <- err
 	}
 }
 
-// WriteSSHConfig is the external interface to write ssh config information
+// writesshconfig is the external interface to write ssh config information
 func WriteSSHConfig(addrs map[int]string) error {
 	var returnChan = make(chan error)
 	req := configRequest{addrs, returnChan}

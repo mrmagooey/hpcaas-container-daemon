@@ -43,26 +43,33 @@ const (
 	RESULT_ERROR
 )
 
+const (
+	STARTED_BY_DAEMON uint8 = iota + 1
+	STARTED_BY_DOCKER_EXEC
+	STARTED_EXTERNALLY
+)
+
 type StateStruct struct {
-	CodeParams       map[string]interface{} `json:"codeParams"`
-	SharedFileSystem bool                   `json:"sharedFileSystem"`
-	ExtraPorts       []extraPort            `json:"extraPorts"`
-	CodeName         string                 `json:"codeName"`
-	CodeArguments    []string               `json:"codeArguments"`
-	CodeState        uint8                  `json:"codeState"`
-	DaemonState      uint8                  `json:"daemonState"`
-	ResultState      uint8                  `json:"resultState"`
-	SSHAddresses     ContainerAddresses     `json:"sshAddresses"`
-	WorldRank        int                    `json:"worldRank"`
-	WorldSize        int                    `json:"worldSize"`
-	ResultsDirectory string                 `json:"resultsDirectory"`
-	ResultsUrl       string                 `json:"resultsUrl"`
-	CodeExitStatus   int                    `json:"codeExitStatus"`
-	AuthorizationKey string                 `json:"authorizationKey"`
-	CodeStdout       string
-	CodeStderr       string
-	ErrorMessages    []string
-	CodePID          int
+	CodeParams        map[string]string  `json:"codeParams"`
+	SharedFileSystem  bool               `json:"sharedFileSystem"`
+	ExtraPorts        []extraPort        `json:"extraPorts"`
+	CodeName          string             `json:"codeName"`
+	CodeArguments     []string           `json:"codeArguments"`
+	CodeState         uint8              `json:"codeState"`
+	DaemonState       uint8              `json:"daemonState"`
+	ResultState       uint8              `json:"resultState"`
+	SSHAddresses      ContainerAddresses `json:"sshAddresses"`
+	WorldRank         int                `json:"worldRank"`
+	WorldSize         int                `json:"worldSize"`
+	ResultsDirectory  string             `json:"resultsDirectory"`
+	ResultsUrl        string             `json:"resultsUrl"`
+	CodeExitStatus    int                `json:"codeExitStatus"`
+	AuthorizationKey  string             `json:"authorizationKey"`
+	CodeStdout        string
+	CodeStderr        string
+	ErrorMessages     []string
+	CodePID           int
+	CodeStartedMethod uint8
 }
 
 // set defaults
@@ -149,8 +156,8 @@ func GetCodeState() uint8 {
 
 // merge two map[string]interface{}'s
 // second argument overrides the first
-func mergeCodeParams(original map[string]interface{}, second map[string]interface{}) map[string]interface{} {
-	updated := make(map[string]interface{})
+func mergeCodeParams(original map[string]string, second map[string]string) map[string]string {
+	updated := make(map[string]string)
 	for k, v := range original {
 		updated[k] = v
 	}
@@ -161,7 +168,7 @@ func mergeCodeParams(original map[string]interface{}, second map[string]interfac
 }
 
 // merge new params with existing params, overwriting as necessary
-func UpdateCodeParams(params map[string]interface{}) error {
+func UpdateCodeParams(params map[string]string) error {
 	stateRWMutex.Lock()
 	defer stateRWMutex.Unlock()
 	daemonState.CodeParams = mergeCodeParams(daemonState.CodeParams, params)
@@ -170,7 +177,7 @@ func UpdateCodeParams(params map[string]interface{}) error {
 }
 
 // overwrite all params with new params
-func SetCodeParams(params map[string]interface{}) error {
+func SetCodeParams(params map[string]string) error {
 	stateRWMutex.Lock()
 	defer stateRWMutex.Unlock()
 	daemonState.CodeParams = params
@@ -178,7 +185,7 @@ func SetCodeParams(params map[string]interface{}) error {
 	return nil
 }
 
-func GetCodeParams() map[string]interface{} {
+func GetCodeParams() map[string]string {
 	stateRWMutex.RLock()
 	defer stateRWMutex.RUnlock()
 	return daemonState.CodeParams
@@ -274,4 +281,16 @@ func GetCodePID() int {
 	stateRWMutex.RLock()
 	defer stateRWMutex.RUnlock()
 	return daemonState.CodePID
+}
+
+func SetCodeStartedMethod(method uint8) {
+	stateRWMutex.Lock()
+	defer stateRWMutex.Unlock()
+	daemonState.CodeStartedMethod = method
+}
+
+func GetCodeStartedMethod() uint8 {
+	stateRWMutex.RLock()
+	defer stateRWMutex.RUnlock()
+	return daemonState.CodeStartedMethod
 }

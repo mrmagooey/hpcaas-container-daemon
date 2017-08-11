@@ -4,6 +4,7 @@ import "fmt"
 import "encoding/json"
 import "net/http"
 import "errors"
+import "strconv"
 
 import "github.com/lestrrat/go-jsschema"
 import "github.com/lestrrat/go-jsval/builder"
@@ -58,17 +59,17 @@ func validatePOSTRequest(r *http.Request, v *jsval.JSVal) (jsonStruct map[string
 	var json_request map[string]interface{}
 	e := decoder.Decode(&json_request)
 	if e != nil {
-		return nil, errors.New("Bad JSON content in request")
+		return nil, e
 	}
 	if err := v.Validate(json_request); err != nil {
-		return nil, errors.New("JSON failed to validate")
+		return nil, err
 	}
 	// json_request is now populated and valid
 	return json_request, nil
 }
 
-func SetCodeConfig() func(w http.ResponseWriter, r *http.Request) {
-	v := getJSONValidator(`schemas/setCodeConfig.json`)
+func SetCodeParams() func(w http.ResponseWriter, r *http.Request) {
+	v := getJSONValidator(`schemas/setCodeParams.json`)
 	return func(w http.ResponseWriter, r *http.Request) {
 		requestJSON, err := validatePOSTRequest(r, v)
 		if err != nil {
@@ -77,19 +78,23 @@ func SetCodeConfig() func(w http.ResponseWriter, r *http.Request) {
 			})
 			return
 		}
-		params := requestJSON["codeParameters"].(map[string]interface{})
-		// send to state
+		// extract parameters and cast
+		codeParameters := requestJSON["codeParameters"].(map[string]interface{})
+		params := make(map[string]string)
+		// concretize values to strings
+		for key, value := range codeParameters {
+			params[key] = value.(string)
+		}
 		err = state.SetCodeParams(params)
 		if err != nil {
 			jsonResponse(w, "error", map[string]interface{}{
 				"message": "parameters failed to set",
 			})
+			return
 		}
 		// write to disk
 		err = container.WriteCodeParams(params)
 		if err != nil {
-			fmt.Println("error: ")
-			fmt.Println(err)
 			jsonResponse(w, "error", map[string]interface{}{
 				"message": "parameters failed to set",
 			})
@@ -114,11 +119,12 @@ func SetCodeName() func(w http.ResponseWriter, r *http.Request) {
 		state.SetCodeName(requestJSON["codeName"].(string))
 		if err != nil {
 			jsonResponse(w, "fail", map[string]interface{}{
-				"message": "parameters failed to set",
+				"message": "name failed to set",
 			})
+			return
 		}
 		jsonResponse(w, "success", map[string]interface{}{
-			"message": "parameter accepted",
+			"message": "name accepted",
 		})
 	}
 }
@@ -132,16 +138,17 @@ func SetCodeState() func(w http.ResponseWriter, r *http.Request) {
 				"message": err.Error(),
 			})
 		}
-		codeState := requestJSON["codeState"].(uint8)
+		codeState := uint8(requestJSON["codeState"].(float64))
 		// send to state
 		state.SetCodeState(codeState)
 		if err != nil {
 			jsonResponse(w, "error", map[string]interface{}{
-				"message": "parameters failed to set",
+				"message": "state failed to set",
 			})
+			return
 		}
 		jsonResponse(w, "success", map[string]interface{}{
-			"message": "parameter accepted",
+			"message": "state accepted",
 		})
 	}
 }
@@ -167,8 +174,9 @@ func Command() func(w http.ResponseWriter, r *http.Request) {
 				return
 			} else {
 				jsonResponse(w, "success", map[string]interface{}{
-					"message": "Code started",
+					"message": "code started",
 				})
+				return
 			}
 		}
 		if commandString == "kill" {
@@ -180,7 +188,7 @@ func Command() func(w http.ResponseWriter, r *http.Request) {
 				return
 			} else {
 				jsonResponse(w, "success", map[string]interface{}{
-					"message": "Code killed",
+					"message": "code killed",
 				})
 				return
 			}
@@ -196,13 +204,34 @@ func SetSSHAddresses() func(w http.ResponseWriter, r *http.Request) {
 			jsonResponse(w, "fail", map[string]interface{}{
 				"message": err.Error(),
 			})
+			return
 		}
 		// get the ssh addresses
-		sshAddresses := requestJSON["sshAddresses"].(map[int]string)
+		addrs := requestJSON["sshAddresses"].(map[string]interface{})
+		sshAddresses := make(map[int]string)
+		for key, val := range addrs {
+			intKey, _ := strconv.Atoi(key)
+			sshAddresses[intKey] = val.(string)
+		}
 		// update state
-		state.SetSSHAddresses(sshAddresses)
+		stateErr := state.SetSSHAddresses(sshAddresses)
+		if stateErr != nil {
+			jsonResponse(w, "fail", map[string]interface{}{
+				"message": err.Error(),
+			})
+			return
+		}
 		// use the ssh addresses to generate a .ssh/config file
-		container.WriteSSHConfig(sshAddresses)
+		writeErr := container.WriteSSHConfig(sshAddresses)
 		// the json schema should ensure that these are the only possibilities
+		if writeErr != nil {
+			jsonResponse(w, "fail", map[string]interface{}{
+				"message": err.Error(),
+			})
+			return
+		}
+		jsonResponse(w, "success", map[string]interface{}{
+			"message": "ssh addresses updated",
+		})
 	}
 }

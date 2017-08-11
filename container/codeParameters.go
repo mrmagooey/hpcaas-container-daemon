@@ -9,7 +9,7 @@ var parameterJSONPath = "/hpcaas/parameters/parameters.json"
 var parameterPath = "/hpcaas/parameters/parameters"
 
 type codeParamRequest struct {
-	Data       map[string]interface{}
+	Data       map[string]string
 	ReturnChan chan error
 }
 
@@ -43,7 +43,7 @@ func writeCodeParams() {
 	}
 }
 
-func WriteCodeParams(params map[string]interface{}) error {
+func WriteCodeParams(params map[string]string) error {
 	var returnChan = make(chan error)
 	req := codeParamRequest{params, returnChan}
 	writeCodeParamsChan <- req

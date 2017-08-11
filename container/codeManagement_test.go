@@ -7,6 +7,8 @@ import "time"
 import "github.com/mrmagooey/hpcaas-container-daemon/state"
 import "errors"
 import "fmt"
+import "os/exec"
+import "bytes"
 
 var TEST_ENV_VAR = "HPCAAS_DAEMON_TEST_CONTAINER"
 
@@ -21,6 +23,7 @@ func TestParent(t *testing.T) {
 	t.Run("_testKillCode", _testKillCode)
 	t.Run("_testCodeStartsThenReturnsError", _testCodeStartsThenReturnsError)
 	t.Run("_testCodeFailToStart", _testCodeFailToStart)
+	t.Run("_testCodeStartedExternally", _testCodeStartedExternally)
 }
 
 // test that a binary can be successfully started
@@ -128,7 +131,7 @@ func _testEnvVars(t *testing.T) {
 	}
 	defer os.Remove("/hpcaas/code/myenv")
 	state.SetCodeName("myenv")
-	state.SetCodeParams(map[string]interface{}{
+	state.SetCodeParams(map[string]string{
 		"hello": "world",
 	})
 	if err := ExecuteCode(); err != nil {
@@ -150,6 +153,7 @@ func _testKillCode(t *testing.T) {
 	defer os.Remove("/hpcaas/code/mysleep")
 	state.SetCodeName("mysleep")
 	state.SetCodeArguments([]string{"1000"})
+
 	assert.Equal(state.CODE_WAITING, state.GetCodeState())
 	err := ExecuteCode()
 	if err != nil {
@@ -203,9 +207,32 @@ func _testCodeFailToStart(t *testing.T) {
 	state.SetCodeName("bash")
 	// make binary unusable
 	os.Chmod("/hpcaas/code/bash", 0x000)
+	// make it usable again after the test has finished
+	defer os.Chmod("/hpcaas/code/bash", 0x755)
 	err := ExecuteCode()
 	assert.Error(err)
 	assert.Equal(state.CODE_FAILED_TO_START, state.GetCodeState())
+}
+
+// test that an externally started binary can be managed
+func _testCodeStartedExternally(t *testing.T) {
+	// test that a started binary can have its return
+	assert := assert.New(t)
+	state.InitState()
+	// start a command that will disown and be inherited by the root process
+	cmd := exec.Command("bash", "-c", "sleep 3 & disown")
+	var out bytes.Buffer
+	var err bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &err
+	cmd.Start()
+	state.SetCodeName("sleep")
+	time.Sleep(2 * time.Second)
+	// the daemon should pick up that there is a sleep command running
+	assert.Equal(state.CODE_RUNNING, state.GetCodeState())
+	time.Sleep(4 * time.Second)
+	// the daemon should pick up that the sleep command has stopped
+	assert.Equal(state.CODE_STOPPED, state.GetCodeState())
 }
 
 func init() {
