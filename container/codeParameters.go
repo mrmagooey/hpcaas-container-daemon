@@ -5,8 +5,8 @@ import "io/ioutil"
 import "bytes"
 import "fmt"
 
-var parameterJSONPath = "/hpcaas/parameters/parameters.json"
-var parameterPath = "/hpcaas/parameters/parameters"
+var parameterJSONPath = "/hpcaas/runtime/parameters.json"
+var parameterPath = "/hpcaas/runtime/parameters"
 
 type codeParamRequest struct {
 	Data       map[string]string
