@@ -4,9 +4,6 @@ import "sync"
 import "encoding/json"
 import "io/ioutil"
 
-// import "os/exec"
-// import "reflect"
-
 var stateFile = "/hpcaas/daemon/state.json"
 
 // contains a name of the port, what the container is binding today
