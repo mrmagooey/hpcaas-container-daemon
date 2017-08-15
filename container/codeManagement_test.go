@@ -33,14 +33,14 @@ func _testExecuteLs(t *testing.T) {
 	os.Symlink("/bin/ls", "/hpcaas/code/myls")
 	defer os.Remove("/hpcaas/code/myls")
 	state.SetCodeName("myls")
-	assert.Equal(state.CODE_WAITING, state.GetCodeState())
+	assert.Equal(state.CodeWaitingState, state.GetCodeState())
 	err := ExecuteCode()
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	time.Sleep(100 * time.Millisecond)
-	assert.Equal(state.CODE_STOPPED, state.GetCodeState())
+	assert.Equal(state.CodeStoppedState, state.GetCodeState())
 }
 
 // test that we can read stdout
@@ -70,15 +70,15 @@ func _testExecuteSleep(t *testing.T) {
 	defer os.Remove("/hpcaas/code/mysleep")
 	state.SetCodeName("mysleep")
 	state.SetCodeArguments([]string{"1"})
-	assert.Equal(state.CODE_WAITING, state.GetCodeState())
+	assert.Equal(state.CodeWaitingState, state.GetCodeState())
 	err := ExecuteCode()
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	assert.Equal(state.CODE_RUNNING, state.GetCodeState())
+	assert.Equal(state.CodeRunningState, state.GetCodeState())
 	time.Sleep(2 * time.Second)
-	assert.Equal(state.CODE_STOPPED, state.GetCodeState())
+	assert.Equal(state.CodeStoppedState, state.GetCodeState())
 }
 
 // test that only one binary can be running at one time
@@ -93,20 +93,20 @@ func _testCodeAlreadyStarted(t *testing.T) {
 	defer os.Remove("/hpcaas/code/mysleep")
 	state.SetCodeName("mysleep")
 	state.SetCodeArguments([]string{"1"})
-	assert.Equal(state.CODE_WAITING, state.GetCodeState())
+	assert.Equal(state.CodeWaitingState, state.GetCodeState())
 	err := ExecuteCode()
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	assert.Equal(state.CODE_RUNNING, state.GetCodeState())
+	assert.Equal(state.CodeRunningState, state.GetCodeState())
 	err = ExecuteCode()
 	if assert.Error(err) {
 		assert.Equal(errors.New("Code already started"), err)
 	}
 	// need to wait for sleep 1 to complete
 	time.Sleep(2 * time.Second)
-	assert.Equal(state.CODE_STOPPED, state.GetCodeState())
+	assert.Equal(state.CodeStoppedState, state.GetCodeState())
 }
 
 // test that missing code raises an error
@@ -114,9 +114,9 @@ func _testCodeMissing(t *testing.T) {
 	assert := assert.New(t)
 	state.InitState()
 	state.SetCodeName("does_not_exist")
-	assert.Equal(state.CODE_WAITING, state.GetCodeState())
+	assert.Equal(state.CodeWaitingState, state.GetCodeState())
 	err := ExecuteCode()
-	assert.Equal(state.CODE_MISSING, state.GetCodeState())
+	assert.Equal(state.CodeMissingState, state.GetCodeState())
 	if assert.Error(err) {
 		assert.Equal(errors.New("Code executable is missing"), err)
 	}
@@ -138,7 +138,7 @@ func _testEnvVars(t *testing.T) {
 		t.Error(err)
 	}
 	time.Sleep(50 * time.Millisecond)
-	assert.Equal(state.CODE_STOPPED, state.GetCodeState())
+	assert.Equal(state.CodeStoppedState, state.GetCodeState())
 	assert.Equal("hello=world\n", state.GetCodeStdout())
 }
 
@@ -154,14 +154,14 @@ func _testKillCode(t *testing.T) {
 	state.SetCodeName("mysleep")
 	state.SetCodeArguments([]string{"1000"})
 
-	assert.Equal(state.CODE_WAITING, state.GetCodeState())
+	assert.Equal(state.CodeWaitingState, state.GetCodeState())
 	err := ExecuteCode()
 	if err != nil {
 		t.Error(err)
 	}
 	// wait till it starts
 	time.Sleep(100 * time.Millisecond)
-	assert.Equal(state.CODE_RUNNING, state.GetCodeState())
+	assert.Equal(state.CodeRunningState, state.GetCodeState())
 	// kill it
 	if err := KillCode(); err != nil {
 		t.Error(err)
@@ -170,7 +170,7 @@ func _testKillCode(t *testing.T) {
 	// TODO parse the process tree to check that we are actually killing the process
 	// wait till it dies
 	time.Sleep(100 * time.Millisecond)
-	assert.Equal(state.CODE_KILLED, state.GetCodeState())
+	assert.Equal(state.CodeKilledState, state.GetCodeState())
 }
 
 func _testCodeStartsThenReturnsError(t *testing.T) {
@@ -184,15 +184,15 @@ func _testCodeStartsThenReturnsError(t *testing.T) {
 	defer os.Remove("/hpcaas/code/bash")
 	state.SetCodeName("bash")
 	state.SetCodeArguments([]string{"-c \"sleep 1 && exit 1\""})
-	assert.Equal(state.CODE_WAITING, state.GetCodeState())
+	assert.Equal(state.CodeWaitingState, state.GetCodeState())
 	err := ExecuteCode()
 	if err != nil {
 		t.Error(err)
 	}
-	assert.Equal(state.CODE_RUNNING, state.GetCodeState())
+	assert.Equal(state.CodeRunningState, state.GetCodeState())
 	// wait till it errors out
 	time.Sleep(1 * time.Second)
-	assert.Equal(state.CODE_ERROR, state.GetCodeState())
+	assert.Equal(state.CodeErrorState, state.GetCodeState())
 }
 
 func _testCodeFailToStart(t *testing.T) {
@@ -211,7 +211,7 @@ func _testCodeFailToStart(t *testing.T) {
 	defer os.Chmod("/hpcaas/code/bash", 0x755)
 	err := ExecuteCode()
 	assert.Error(err)
-	assert.Equal(state.CODE_FAILED_TO_START, state.GetCodeState())
+	assert.Equal(state.CodeFailedToStartState, state.GetCodeState())
 }
 
 // test that an externally started binary can be managed
@@ -229,10 +229,10 @@ func _testCodeStartedExternally(t *testing.T) {
 	state.SetCodeName("sleep")
 	time.Sleep(2 * time.Second)
 	// the daemon should pick up that there is a sleep command running
-	assert.Equal(state.CODE_RUNNING, state.GetCodeState())
+	assert.Equal(state.CodeRunningState, state.GetCodeState())
 	time.Sleep(4 * time.Second)
 	// the daemon should pick up that the sleep command has stopped
-	assert.Equal(state.CODE_STOPPED, state.GetCodeState())
+	assert.Equal(state.CodeStoppedState, state.GetCodeState())
 }
 
 func init() {

@@ -96,7 +96,7 @@ func TestCommand(t *testing.T) {
 	expected := `{"status":"success","data":{"message":"code started"}}`
 	assert.JSONEq(expected, rr.Body.String())
 	// check that the internal state has been updated
-	assert.Equal(state.CODE_RUNNING, state.GetCodeState())
+	assert.Equal(state.CodeRunningState, state.GetCodeState())
 
 	// kill the code
 	jsonBytes = []byte(`{"command": "kill"}`)
@@ -112,7 +112,7 @@ func TestCommand(t *testing.T) {
 	expected = `{"status":"success","data":{"message":"code killed"}}`
 	assert.JSONEq(expected, rr.Body.String())
 	// check that the internal state has been updated
-	assert.Equal(state.CODE_KILLED, state.GetCodeState())
+	assert.Equal(state.CodeKilledState, state.GetCodeState())
 }
 
 func TestSetSSHAddrs(t *testing.T) {

@@ -7,7 +7,7 @@ import "io/ioutil"
 import "time"
 
 var codeName = "ls"
-var codeState = CODE_MISSING
+var codeState = CodeMissingState
 
 var codeArgs = []string{"hi", "world"}
 

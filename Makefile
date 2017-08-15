@@ -28,7 +28,6 @@ else
 	docker build -t $(test-image-name) --network $(DOCKER_BUILD_NETWORK) --build-arg http_proxy=$(DOCKER_BUILD_PROXY) -f tests/Dockerfile .
 endif
 
-
 docker_test_container_exists=$(shell docker ps -a | grep $(test-container-name) > /dev/null 2>&1; echo $$?)
 
 docker_go_path=/go/src/github.com/mrmagooey/hpcaas-container-daemon

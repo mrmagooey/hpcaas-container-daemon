@@ -36,8 +36,8 @@ func writeSSHConfig() {
 		// this stops the interactive ssh prompt
 		buffer.WriteString("StrictHostKeyChecking No\n")
 		// add each containers ip
-		for containerId, address := range sshAddresses {
-			host := fmt.Sprintf("Host container_%d\n", containerId)
+		for containerID, address := range sshAddresses {
+			host := fmt.Sprintf("Host container_%d\n", containerID)
 			buffer.WriteString(host)
 			s := strings.Split(address, ":")
 			ipAddr, port := s[0], s[1]
@@ -73,7 +73,7 @@ func writePrivateKey() {
 	}
 }
 
-// writesshconfig is the external interface to write ssh config information
+// WriteSSHConfig is the external interface to write ssh config information
 func WriteSSHConfig(addrs map[int]string) error {
 	var returnChan = make(chan error)
 	req := configRequest{addrs, returnChan}

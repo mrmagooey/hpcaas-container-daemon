@@ -43,6 +43,9 @@ func writeCodeParams() {
 	}
 }
 
+// WriteCodeParams write the params to disk
+// does so by sending the values over the channel to the
+// disk writing goroutine
 func WriteCodeParams(params map[string]string) error {
 	var returnChan = make(chan error)
 	req := codeParamRequest{params, returnChan}
