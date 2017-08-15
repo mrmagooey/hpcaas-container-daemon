@@ -1,4 +1,4 @@
-FROM mrmagooey/hpcaas-container-base:0.1.2
+FROM mrmagooey/hpcaas-container-base:0.1.3
 
 ENV GOLANG_VERSION 1.8.3
 
