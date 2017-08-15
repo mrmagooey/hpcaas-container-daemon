@@ -9,7 +9,7 @@ import "errors"
 import "bytes"
 import "time"
 
-// creates a new exec cmd subprocess
+// ExecuteCode creates a new exec cmd subprocess
 // will return error if there is a problem creating the subprocess
 // otherwise will spawn a goroutine that watches the subprocess
 // check that we aren't already running
@@ -52,26 +52,30 @@ func ExecuteCode() error {
 	return nil
 }
 
-// send the kill signal
+// KillCode send the kill signal
 func KillCode() error {
 	if s := state.GetCodeState(); s != state.CodeRunningState {
 		return errors.New("No process currently running")
 	}
 	state.SetCodeState(state.CodeKilledState)
 	proc, err := os.FindProcess(state.GetCodePID())
+	if err != nil {
+		state.AddErrorMessage(err.Error())
+		state.SetCodeState(state.CodeFailedToKillState)
+	}
 	// extra check that the process is running
 	err = proc.Signal(syscall.Signal(0))
 	if err != nil {
+		// TODO
 		// process has died
 		// watchcmd should have updated everything
 		return nil
-	} else {
-		// tell the process to terminate
-		err := proc.Signal(syscall.SIGTERM)
-		if err != nil {
-			state.AddErrorMessage(err.Error())
-			state.SetCodeState(state.CodeFailedToKillState)
-		}
+	}
+	// tell the process to terminate
+	err = proc.Signal(syscall.SIGTERM)
+	if err != nil {
+		state.AddErrorMessage(err.Error())
+		state.SetCodeState(state.CodeFailedToKillState)
 	}
 	return nil
 }
