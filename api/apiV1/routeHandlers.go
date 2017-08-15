@@ -13,7 +13,7 @@ import "github.com/lestrrat/go-jsval"
 import "github.com/mrmagooey/hpcaas-container-daemon/container"
 import "github.com/mrmagooey/hpcaas-container-daemon/state"
 
-type response_json struct {
+type responseJSON struct {
 	Status string                 `json:"status"`
 	Data   map[string]interface{} `json:"data"`
 }
@@ -36,17 +36,17 @@ func getJSONValidator(schemaFilename string) *jsval.JSVal {
 
 // provide a standardised JSON response back to the client
 func jsonResponse(w http.ResponseWriter, status string, data map[string]interface{}) {
-	resp := response_json{}
+	resp := responseJSON{}
 	resp.Status = status
 	resp.Data = data
-	resp_bytes, err := json.Marshal(resp)
+	respBytes, err := json.Marshal(resp)
 	if err != nil {
 		panic("Can't marshall the json response")
 	}
-	w.Write(resp_bytes)
+	w.Write(respBytes)
 }
 
-type parameter_keyval struct {
+type parameterKeyval struct {
 	Key   string
 	Value interface{}
 }
@@ -56,16 +56,16 @@ func validatePOSTRequest(r *http.Request, v *jsval.JSVal) (jsonStruct map[string
 		return nil, errors.New("Bad Request")
 	}
 	decoder := json.NewDecoder(r.Body)
-	var json_request map[string]interface{}
-	e := decoder.Decode(&json_request)
+	var jsonRequest map[string]interface{}
+	e := decoder.Decode(&jsonRequest)
 	if e != nil {
 		return nil, e
 	}
-	if err := v.Validate(json_request); err != nil {
+	if err := v.Validate(jsonRequest); err != nil {
 		return nil, err
 	}
 	// json_request is now populated and valid
-	return json_request, nil
+	return jsonRequest, nil
 }
 
 // SetCodeParams returns a closure that handles http requests
@@ -107,6 +107,7 @@ func SetCodeParams() func(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// SetCodeName closure returning http handler that sets the code name
 func SetCodeName() func(w http.ResponseWriter, r *http.Request) {
 	v := getJSONValidator(`schemas/setCodeName.json`)
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -130,6 +131,7 @@ func SetCodeName() func(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// SetCodeState closure returning http handler that sets the code state
 func SetCodeState() func(w http.ResponseWriter, r *http.Request) {
 	v := getJSONValidator(`schemas/setCodeState.json`)
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -154,6 +156,8 @@ func SetCodeState() func(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Command closure that returning http handler that gives a command to the daemon
+// this is responsible for starting and killing code
 func Command() func(w http.ResponseWriter, r *http.Request) {
 	v := getJSONValidator(`schemas/command.json`)
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -173,12 +177,11 @@ func Command() func(w http.ResponseWriter, r *http.Request) {
 					"message": err.Error(),
 				})
 				return
-			} else {
-				jsonResponse(w, "success", map[string]interface{}{
-					"message": "code started",
-				})
-				return
 			}
+			jsonResponse(w, "success", map[string]interface{}{
+				"message": "code started",
+			})
+			return
 		}
 		if commandString == "kill" {
 			err = container.KillCode()
@@ -187,16 +190,16 @@ func Command() func(w http.ResponseWriter, r *http.Request) {
 					"message": err.Error(),
 				})
 				return
-			} else {
-				jsonResponse(w, "success", map[string]interface{}{
-					"message": "code killed",
-				})
-				return
 			}
+			jsonResponse(w, "success", map[string]interface{}{
+				"message": "code killed",
+			})
+			return
 		}
 	}
 }
 
+// SetSSHAddresses closure that returns http handler responsible for setting ssh addresses of other containers
 func SetSSHAddresses() func(w http.ResponseWriter, r *http.Request) {
 	v := getJSONValidator(`schemas/setSSHAddresses.json`)
 	return func(w http.ResponseWriter, r *http.Request) {
