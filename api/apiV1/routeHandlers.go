@@ -68,6 +68,7 @@ func validatePOSTRequest(r *http.Request, v *jsval.JSVal) (jsonStruct map[string
 	return json_request, nil
 }
 
+// SetCodeParams returns a closure that handles http requests
 func SetCodeParams() func(w http.ResponseWriter, r *http.Request) {
 	v := getJSONValidator(`schemas/setCodeParams.json`)
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -88,7 +89,7 @@ func SetCodeParams() func(w http.ResponseWriter, r *http.Request) {
 		err = state.SetCodeParams(params)
 		if err != nil {
 			jsonResponse(w, "error", map[string]interface{}{
-				"message": "parameters failed to set",
+				"message": fmt.Sprintf("state failed to set: %s", err.Error()),
 			})
 			return
 		}
@@ -96,7 +97,7 @@ func SetCodeParams() func(w http.ResponseWriter, r *http.Request) {
 		err = container.WriteCodeParams(params)
 		if err != nil {
 			jsonResponse(w, "error", map[string]interface{}{
-				"message": "parameters failed to set",
+				"message": fmt.Sprintf("parameters failed to write to disk: %s", err.Error()),
 			})
 			return
 		}
