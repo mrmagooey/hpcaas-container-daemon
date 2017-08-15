@@ -37,7 +37,7 @@ func writeSSHConfig() {
 		buffer.WriteString("StrictHostKeyChecking No\n")
 		// add each containers ip
 		for containerID, address := range sshAddresses {
-			host := fmt.Sprintf("Host container_%d\n", containerID)
+			host := fmt.Sprintf("Host %s\n", generateContainerName(containerID))
 			buffer.WriteString(host)
 			s := strings.Split(address, ":")
 			ipAddr, port := s[0], s[1]

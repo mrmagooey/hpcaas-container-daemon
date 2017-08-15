@@ -70,12 +70,10 @@ func TestWriteSSHPublicKey(t *testing.T) {
 // 	if err != nil {
 // 		return err
 // 	}
-
 // 	privateKeyPEM := &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privateKey)}
 // 	if err := pem.Encode(privateKeyFile, privateKeyPEM); err != nil {
 // 		return err
 // 	}
-
 // 	// generate and write public key
 // 	pub, err := ssh.NewPublicKey(&privateKey.PublicKey)
 // 	if err != nil {
