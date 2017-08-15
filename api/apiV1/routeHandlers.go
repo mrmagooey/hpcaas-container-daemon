@@ -226,7 +226,7 @@ func SetSSHAddresses() func(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// use the ssh addresses to generate a .ssh/config file
-		writeErr := container.WriteSSHConfig(sshAddresses)
+		writeErr := container.WriteSSHConfig()
 		// the json schema should ensure that these are the only possibilities
 		if writeErr != nil {
 			jsonResponse(w, "fail", map[string]interface{}{

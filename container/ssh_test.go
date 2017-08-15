@@ -10,17 +10,20 @@ import "encoding/pem"
 import "bytes"
 import "os"
 import "golang.org/x/crypto/ssh"
+import "github.com/mrmagooey/hpcaas-container-daemon/state"
 
 func TestWriteSSHConfig(t *testing.T) {
 	assert := assert.New(t)
-	testAddrs := map[int]string{
+	state.InitState()
+	testAddrs := state.ContainerAddresses{
 		1: "127.0.0.1:8000",
 		2: "127.0.0.1:8001",
 		3: "127.0.0.1:8002",
 		4: "127.0.0.1:8003",
 		5: "127.0.0.1:8004",
 	}
-	err := WriteSSHConfig(testAddrs)
+	state.SetSSHAddresses(testAddrs)
+	err := WriteSSHConfig()
 	assert.NoError(err)
 	conf, err := ioutil.ReadFile("/root/.ssh/config")
 	confString := string(conf)
@@ -30,6 +33,7 @@ func TestWriteSSHConfig(t *testing.T) {
 
 func TestWriteSSHPrivateKey(t *testing.T) {
 	assert := assert.New(t)
+	state.InitState()
 	// generate a valid private key
 	privateKey, err := rsa.GenerateKey(rand.Reader, 1024)
 	if err != nil {
@@ -40,7 +44,8 @@ func TestWriteSSHPrivateKey(t *testing.T) {
 	if err := pem.Encode(&privateKeyBuf, privateKeyPEM); err != nil {
 		t.Error(err)
 	}
-	WriteSSHPrivateKey(privateKeyBuf.String())
+	state.SetSSHPrivateKey(privateKeyBuf.String())
+	WritePrivateKey()
 	conf, err := ioutil.ReadFile("/root/.ssh/private_key")
 	assert.Equal(privateKeyBuf.String(), string(conf))
 	os.Remove("/root/.ssh/private_key")
@@ -48,6 +53,7 @@ func TestWriteSSHPrivateKey(t *testing.T) {
 
 func TestWriteSSHPublicKey(t *testing.T) {
 	assert := assert.New(t)
+	state.InitState()
 	// generate a valid private key
 	privateKey, err := rsa.GenerateKey(rand.Reader, 1024)
 	if err != nil {
@@ -58,8 +64,10 @@ func TestWriteSSHPublicKey(t *testing.T) {
 	if err := pem.Encode(&privateKeyBuf, privateKeyPEM); err != nil {
 		t.Error(err)
 	}
+
 	publicKey, err := ssh.NewPublicKey(&privateKey.PublicKey)
-	WriteSSHPublicKey(string(ssh.MarshalAuthorizedKey(publicKey)))
+	state.SetSSHPublicKey(string(ssh.MarshalAuthorizedKey(publicKey)))
+	WritePublicKey()
 	priv, err := ioutil.ReadFile(sshAuthorizedKeys)
 	assert.Equal(string(priv), string(ssh.MarshalAuthorizedKey(publicKey)))
 	os.Remove(sshAuthorizedKeys)

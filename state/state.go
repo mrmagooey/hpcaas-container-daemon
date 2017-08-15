@@ -70,6 +70,8 @@ type stateStruct struct {
 	ErrorMessages     []string
 	CodePID           int
 	CodeStartedMethod uint8
+	SSHPrivateKey     string
+	SSHPublicKey      string
 }
 
 // set defaults
@@ -309,4 +311,32 @@ func GetCodeStartedMethod() uint8 {
 	stateRWMutex.RLock()
 	defer stateRWMutex.RUnlock()
 	return daemonState.CodeStartedMethod
+}
+
+// SetSSHPrivateKey set the private key
+func SetSSHPrivateKey(priv string) {
+	stateRWMutex.Lock()
+	defer stateRWMutex.Unlock()
+	daemonState.SSHPrivateKey = priv
+}
+
+// GetSSHPrivateKey get the ssh private key
+func GetSSHPrivateKey() string {
+	stateRWMutex.RLock()
+	defer stateRWMutex.RUnlock()
+	return daemonState.SSHPrivateKey
+}
+
+// SetSSHPublicKey set the public key
+func SetSSHPublicKey(priv string) {
+	stateRWMutex.Lock()
+	defer stateRWMutex.Unlock()
+	daemonState.SSHPublicKey = priv
+}
+
+// GetSSHPublicKey get the ssh public key
+func GetSSHPublicKey() string {
+	stateRWMutex.RLock()
+	defer stateRWMutex.RUnlock()
+	return daemonState.SSHPublicKey
 }
