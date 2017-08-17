@@ -15,8 +15,11 @@ func TestWriteHostFile(t *testing.T) {
 	WriteHostFile()
 	contents, err := ioutil.ReadFile(hostFilePath)
 	assert.NoError(err)
-	assert.Equal(
-		"container_1 slots 1\ncontainer_2 slots 1\n",
+	assert.Contains(
+		[]string{
+			"container_1 slots 1\ncontainer_2 slots 1\n",
+			"container_2 slots 1\ncontainer_1 slots 1\n",
+		},
 		string(contents),
 	)
 }
