@@ -136,3 +136,18 @@ func TestSetSSHAddrs(t *testing.T) {
 		2: "127.0.0.1:9809",
 	}, state.GetSSHAddresses())
 }
+
+func TestHeartbeat(t *testing.T) {
+	state.InitState()
+	assert := assert.New(t)
+	req, err := http.NewRequest("GET", "/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(Heartbeat)
+	handler.ServeHTTP(rr, req)
+	assert.Equal(rr.Code, http.StatusOK)
+	assert.Equal(rr.Body.Len(), 0)
+
+}

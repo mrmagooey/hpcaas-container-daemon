@@ -68,6 +68,11 @@ func validatePOSTRequest(r *http.Request, v *jsval.JSVal) (jsonStruct map[string
 	return jsonRequest, nil
 }
 
+// Heartbeat returns an empty response
+func Heartbeat(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte{})
+}
+
 // SetCodeParams returns a closure that handles http requests
 func SetCodeParams() func(w http.ResponseWriter, r *http.Request) {
 	v := getJSONValidator(`schemas/setCodeParams.json`)
