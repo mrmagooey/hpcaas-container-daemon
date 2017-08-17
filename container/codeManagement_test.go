@@ -10,8 +10,6 @@ import "fmt"
 import "os/exec"
 import "bytes"
 
-var TEST_ENV_VAR = "HPCAAS_DAEMON_TEST_CONTAINER"
-
 func TestParent(t *testing.T) {
 	fmt.Println("")
 	t.Run("_testExecuteLs", _testExecuteLs)
@@ -233,10 +231,4 @@ func _testCodeStartedExternally(t *testing.T) {
 	time.Sleep(4 * time.Second)
 	// the daemon should pick up that the sleep command has stopped
 	assert.Equal(state.CodeStoppedState, state.GetCodeState())
-}
-
-func init() {
-	if _, found := os.LookupEnv(TEST_ENV_VAR); found != true {
-		panic("All tests should be run in the container, with " + TEST_ENV_VAR + " being set")
-	}
 }
