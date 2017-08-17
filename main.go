@@ -20,15 +20,15 @@ var daemonAuthEnvVar = "AUTHORIZATION"
 // pull comm information out of environment variables and save to disk
 func setupTLSInfo() {
 	tlsPublicCert, envErr := os.LookupEnv(daemonPublicCertEnvVar)
-	if envErr == false {
+	if !envErr {
 		panic("TLS certificate is missing from environment variables")
 	}
 	tlsPrivateKey, envErr := os.LookupEnv(daemonPrivateKeyEnvVar)
-	if envErr == false {
+	if !envErr {
 		panic("TLS key is missing from environment variables")
 	}
 	authKey, envErr := os.LookupEnv(daemonAuthEnvVar)
-	if envErr == false {
+	if !envErr {
 		panic("authorization is missing from environment variables")
 	}
 	//
