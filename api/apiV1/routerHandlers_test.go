@@ -5,17 +5,19 @@ import (
 	"fmt"
 	"github.com/mrmagooey/hpcaas-container-daemon/state"
 	"github.com/stretchr/testify/assert"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 )
 
 func init() {
 	fmt.Println("")
 }
 
-func TestSetCodeParametersV1_POST(t *testing.T) {
+func TestSetCodeParameters(t *testing.T) {
 	state.InitState()
 	assert := assert.New(t)
 	var jsonStr = []byte(`{"codeParameters":{"foo":"bar", "hello":"value", "myParam": "1"}}`)
@@ -148,6 +150,11 @@ func TestHeartbeat(t *testing.T) {
 	handler := http.HandlerFunc(Heartbeat)
 	handler.ServeHTTP(rr, req)
 	assert.Equal(rr.Code, http.StatusOK)
-	assert.Equal(rr.Body.Len(), 0)
-
+	bodyBytes, err := ioutil.ReadAll(rr.Body)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	_, err = time.Parse(time.UnixDate, string(bodyBytes))
+	assert.NoError(err)
 }
