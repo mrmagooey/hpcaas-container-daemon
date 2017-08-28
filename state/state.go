@@ -39,8 +39,8 @@ const (
 	CodeErrorState
 )
 
-// CodeStates A slice containing all codeStates
-var codeStates = []string{
+// CodeStates A slice containing all CodeState strings
+var CodeStates = []string{
 	"CodeWaitingState",
 	"CodeMissingState",
 	"CodeFailedToStartState",
@@ -52,7 +52,7 @@ var codeStates = []string{
 }
 
 func (cs CodeState) String() string {
-	return codeStates[int(cs)-1]
+	return CodeStates[int(cs)-1]
 }
 
 // The set of result states
