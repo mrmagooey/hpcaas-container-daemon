@@ -9,11 +9,6 @@ import "sync"
 var parameterJSONPath = "/hpcaas/runtime/parameters.json"
 var parameterPath = "/hpcaas/runtime/parameters"
 
-type codeParamRequest struct {
-	Data       map[string]string
-	ReturnChan chan error
-}
-
 // var writeCodeParamsChan = make(chan codeParamRequest)
 var writeCodeMut = sync.Mutex{}
 
@@ -21,6 +16,8 @@ var writeCodeMut = sync.Mutex{}
 // does so by sending the values over the channel to the
 // disk writing goroutine
 func WriteCodeParams(params map[string]string) error {
+	writeCodeMut.Lock()
+	defer writeCodeMut.Unlock()
 	// write json
 	newJSON, err := json.Marshal(params)
 	if err != nil {
