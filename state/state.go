@@ -3,6 +3,7 @@ package state
 import "sync"
 import "encoding/json"
 import "io/ioutil"
+import "fmt"
 
 var stateFile = "/hpcaas/daemon/state.json"
 
@@ -23,9 +24,12 @@ const (
 	DaemonErrorState
 )
 
+// CodeState new type so that we can add our methods
+type CodeState int
+
 // The set of user code states
 const (
-	CodeWaitingState uint8 = iota + 1
+	CodeWaitingState CodeState = iota + 1
 	CodeMissingState
 	CodeFailedToStartState
 	CodeRunningState
@@ -34,6 +38,22 @@ const (
 	CodeFailedToKillState
 	CodeErrorState
 )
+
+// CodeStates A slice containing all codeStates
+var codeStates = []string{
+	"CodeWaitingState",
+	"CodeMissingState",
+	"CodeFailedToStartState",
+	"CodeRunningState",
+	"CodeStoppedState",
+	"CodeKilledState",
+	"CodeFailedToKillState",
+	"CodeErrorState",
+}
+
+func (cs CodeState) String() string {
+	return codeStates[int(cs)-1]
+}
 
 // The set of result states
 const (
@@ -55,7 +75,7 @@ type stateStruct struct {
 	ExtraPorts        []extraPort        `json:"extraPorts"`
 	CodeName          string             `json:"codeName"`
 	CodeArguments     []string           `json:"codeArguments"`
-	CodeState         uint8              `json:"codeState"`
+	CodeState         CodeState          `json:"codeState"`
 	DaemonState       uint8              `json:"daemonState"`
 	ResultState       uint8              `json:"resultState"`
 	SSHAddresses      ContainerAddresses `json:"sshAddresses"`
@@ -91,7 +111,6 @@ func InitState() {
 		ResultsDirectory: "/hpcaas/results",
 	}
 	stateRWMutex.Unlock()
-	dehydrateToDisk()
 }
 
 func init() {
@@ -113,9 +132,10 @@ var dehydrateMut = sync.Mutex{}
 func dehydrateToDisk() {
 	dehydrateMut.Lock()
 	defer dehydrateMut.Unlock()
-	err := ioutil.WriteFile(stateFile, GetStateJSON(), 777)
+	err := ioutil.WriteFile(stateFile, GetStateJSON(), 0777)
 	if err != nil {
-		panic("Can't write dehydrate file to disk")
+		// TODO
+		fmt.Println("Couldn't write state to disk")
 	}
 }
 
@@ -127,9 +147,11 @@ func RehydrateFromDisk() {
 	if err != nil {
 		// the file doesn't exist or is unreadable
 		// could happen if the daemon previously started but didn't manage to write any daemonState
+		fmt.Println("Couldn't read state from disk")
 	}
-	if e := json.Unmarshal(file, daemonState); e != nil {
+	if e := json.Unmarshal(file, &daemonState); e != nil {
 		// TODO the file has been corrupted
+		fmt.Println("Couldn't read state from disk")
 	}
 }
 
@@ -149,7 +171,7 @@ func GetCodeName() string {
 }
 
 // SetCodeState safely sets codeState
-func SetCodeState(codeState uint8) {
+func SetCodeState(codeState CodeState) {
 	stateRWMutex.Lock()
 	defer stateRWMutex.Unlock()
 	daemonState.CodeState = codeState
@@ -157,7 +179,7 @@ func SetCodeState(codeState uint8) {
 }
 
 // GetCodeState returns codeState
-func GetCodeState() uint8 {
+func GetCodeState() CodeState {
 	stateRWMutex.RLock()
 	defer stateRWMutex.RUnlock()
 	return daemonState.CodeState
