@@ -14,7 +14,7 @@ import (
 )
 
 func init() {
-	fmt.Println("")
+
 }
 
 func TestSetCodeParameters(t *testing.T) {
@@ -60,7 +60,8 @@ func TestSetCodeName(t *testing.T) {
 func TestSetCodeState(t *testing.T) {
 	state.InitState()
 	assert := assert.New(t)
-	var jsonBytes = []byte(`{"codeState": 1}`)
+	codeState := state.CodeMissingState
+	var jsonBytes = []byte(fmt.Sprintf(`{"codeState": %d}`, int(codeState)))
 	req, err := http.NewRequest("POST", "/", bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		t.Fatal(err)
@@ -73,7 +74,7 @@ func TestSetCodeState(t *testing.T) {
 	expected := `{"status":"success","data":{"message":"state accepted"}}`
 	assert.JSONEq(expected, rr.Body.String())
 	// check that the internal state has been updated
-	assert.Equal(uint8(1), state.GetCodeState())
+	assert.Equal(codeState, state.GetCodeState())
 }
 
 func TestCommand(t *testing.T) {

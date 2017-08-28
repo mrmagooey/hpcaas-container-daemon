@@ -223,7 +223,7 @@ func SetCodeState() func(w http.ResponseWriter, r *http.Request) {
 		var responseStruct = &setCodeStateStruct{}
 		json.Unmarshal(body, responseStruct)
 		// send to state
-		state.SetCodeState(uint8(responseStruct.CodeState))
+		state.SetCodeState(state.CodeState(responseStruct.CodeState))
 		if err != nil {
 			jsonResponse(w, "error", map[string]interface{}{
 				"message": "state failed to set",
