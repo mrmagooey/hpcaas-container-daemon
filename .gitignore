@@ -4,3 +4,4 @@ routes/
 /main
 /hpcaas-container-daemon
 /coverage.out
+/vendor
