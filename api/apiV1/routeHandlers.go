@@ -4,13 +4,15 @@ import (
 	"encoding/json"
 	"errors"
 	//	"fmt"
-	"github.com/alecthomas/jsonschema"
-	"github.com/mrmagooey/hpcaas-container-daemon/container"
-	"github.com/mrmagooey/hpcaas-container-daemon/state"
-	"github.com/xeipuuv/gojsonschema"
 	"io/ioutil"
 	"net/http"
 	"time"
+
+	"github.com/alecthomas/jsonschema"
+	common "github.com/mrmagooey/hpcaas-common"
+	"github.com/mrmagooey/hpcaas-container-daemon/container"
+	"github.com/mrmagooey/hpcaas-container-daemon/state"
+	"github.com/xeipuuv/gojsonschema"
 )
 
 type responseJSON struct {
@@ -190,19 +192,6 @@ type setCodeStateStruct struct {
 	CodeState float64 `json:"codeState"`
 }
 
-// var setCodeStateSchema = bytes.NewBufferString(`{
-//   "type": "object",
-//   "properties": {
-//     "codeState": {
-//       "description": "The state that the code will be set to",
-//       "type": "number"
-//     }
-//   },
-//   "required": [
-//     "codeState"
-//   ]
-// }`)
-
 // SetCodeState closure returning http handler that sets the code state
 func SetCodeState() func(w http.ResponseWriter, r *http.Request) {
 	schema := getJSONValidator(&setCodeStateStruct{})
@@ -223,7 +212,7 @@ func SetCodeState() func(w http.ResponseWriter, r *http.Request) {
 		var responseStruct = &setCodeStateStruct{}
 		json.Unmarshal(body, responseStruct)
 		// send to state
-		state.SetCodeState(state.CodeState(responseStruct.CodeState))
+		state.SetCodeState(common.CodeState(responseStruct.CodeState))
 		if err != nil {
 			jsonResponse(w, "error", map[string]interface{}{
 				"message": "state failed to set",

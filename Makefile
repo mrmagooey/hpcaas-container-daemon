@@ -7,12 +7,12 @@ compress= @if hash upx 2>/dev/null; then\
 all: build
 
 build:
-	go get -v
+	dep ensure
 	go build -v
 	$(call compress)
 
 build-docker:
-	docker run --rm -v "$(shell pwd)":/go/src/hpcaas-container-daemon -w /go/src/hpcaas-container-daemon golang:1.8 /bin/bash -c "go get -v; go build -v"
+	docker run --rm -v "$(shell pwd)":/go/src/hpcaas-container-daemon -w /go/src/hpcaas-container-daemon golang:1.9.2 /bin/bash -c "go get -u github.com/golang/dep/cmd/dep; dep ensure; go build -v"
 	$(call compress)
 
 test-image-name=hpcaas-daemon-test-image

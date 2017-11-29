@@ -1,9 +1,13 @@
 package state
 
-import "sync"
-import "encoding/json"
-import "io/ioutil"
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"sync"
+
+	common "github.com/mrmagooey/hpcaas-common"
+)
 
 var stateFile = "/hpcaas/daemon/state.json"
 
@@ -17,67 +21,15 @@ type extraPort struct {
 	ExternalContainerPorts ContainerAddresses
 }
 
-// The set of possible daemon states
-const (
-	DaemonStartedState uint8 = iota + 1
-	DaemonRunningState
-	DaemonErrorState
-)
-
-// CodeState new type so that we can add our methods
-type CodeState int
-
-// The set of user code states
-const (
-	CodeWaitingState CodeState = iota + 1
-	CodeMissingState
-	CodeFailedToStartState
-	CodeRunningState
-	CodeStoppedState
-	CodeKilledState
-	CodeFailedToKillState
-	CodeErrorState
-)
-
-// CodeStates A slice containing all CodeState strings
-var CodeStates = []string{
-	"CodeWaitingState",
-	"CodeMissingState",
-	"CodeFailedToStartState",
-	"CodeRunningState",
-	"CodeStoppedState",
-	"CodeKilledState",
-	"CodeFailedToKillState",
-	"CodeErrorState",
-}
-
-func (cs CodeState) String() string {
-	return CodeStates[int(cs)-1]
-}
-
-// The set of result states
-const (
-	ResultWaitingState uint8 = iota + 1
-	ResultUploadingState
-	ResultsUploadingFinishedState
-	ResultErrorState
-)
-
-// The set of user code start states
-const (
-	StartedByDaemonState uint8 = iota + 1
-	StartedExternallyState
-)
-
 type stateStruct struct {
 	CodeParams        map[string]string  `json:"codeParams"`
 	SharedFileSystem  bool               `json:"sharedFileSystem"`
 	ExtraPorts        []extraPort        `json:"extraPorts"`
 	CodeName          string             `json:"codeName"`
 	CodeArguments     []string           `json:"codeArguments"`
-	CodeState         CodeState          `json:"codeState"`
+	CodeState         common.CodeState   `json:"codeState"`
 	DaemonState       uint8              `json:"daemonState"`
-	ResultState       uint8              `json:"resultState"`
+	ResultState       common.ResultState `json:"resultState"`
 	SSHAddresses      ContainerAddresses `json:"sshAddresses"`
 	WorldRank         int                `json:"worldRank"`
 	WorldSize         int                `json:"worldSize"`
@@ -89,7 +41,7 @@ type stateStruct struct {
 	CodeStderr        string
 	ErrorMessages     []string
 	CodePID           int
-	CodeStartedMethod uint8
+	CodeStartedMethod int
 	SSHPrivateKey     string
 	SSHPublicKey      string
 }
@@ -105,9 +57,9 @@ func InitState() {
 	daemonState = stateStruct{
 		SharedFileSystem: false,
 		CodeName:         "hpc-code",
-		CodeState:        CodeWaitingState,
-		DaemonState:      DaemonStartedState,
-		ResultState:      ResultWaitingState,
+		CodeState:        common.CodeWaitingState,
+		DaemonState:      common.DaemonStartedState,
+		ResultState:      common.ResultWaitingState,
 		ResultsDirectory: "/hpcaas/results",
 	}
 	stateRWMutex.Unlock()
@@ -171,7 +123,7 @@ func GetCodeName() string {
 }
 
 // SetCodeState safely sets codeState
-func SetCodeState(codeState CodeState) {
+func SetCodeState(codeState common.CodeState) {
 	stateRWMutex.Lock()
 	defer stateRWMutex.Unlock()
 	daemonState.CodeState = codeState
@@ -179,7 +131,7 @@ func SetCodeState(codeState CodeState) {
 }
 
 // GetCodeState returns codeState
-func GetCodeState() CodeState {
+func GetCodeState() common.CodeState {
 	stateRWMutex.RLock()
 	defer stateRWMutex.RUnlock()
 	return daemonState.CodeState
@@ -322,14 +274,14 @@ func GetCodePID() int {
 }
 
 // SetCodeStartedMethod set the user code start method
-func SetCodeStartedMethod(method uint8) {
+func SetCodeStartedMethod(method common.StartedState) {
 	stateRWMutex.Lock()
 	defer stateRWMutex.Unlock()
-	daemonState.CodeStartedMethod = method
+	daemonState.CodeStartedMethod = int(method)
 }
 
 // GetCodeStartedMethod get the user code start method
-func GetCodeStartedMethod() uint8 {
+func GetCodeStartedMethod() int {
 	stateRWMutex.RLock()
 	defer stateRWMutex.RUnlock()
 	return daemonState.CodeStartedMethod

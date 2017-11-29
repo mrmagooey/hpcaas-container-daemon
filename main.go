@@ -2,10 +2,13 @@ package main
 
 import (
 	"crypto/tls"
-	"github.com/mrmagooey/hpcaas-container-daemon/state"
+	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
+
+	"github.com/mrmagooey/hpcaas-container-daemon/state"
 )
 
 var startupFile = "/hpcaas/daemon/daemon_has_started"
@@ -16,29 +19,39 @@ var daemonPublicCertEnvVar = "TLS_PUBLIC_CERT"
 var daemonPrivateKeyEnvVar = "TLS_PRIVATE_KEY"
 var daemonAuthEnvVar = "AUTHORIZATION"
 
+var logFileLocation = "/hpcaaas/daemon/log.txt"
+
+func init() {
+	f, err := os.OpenFile(logFileLocation, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
+	if err != nil {
+		fmt.Println("Failure to open log file")
+	}
+	log.SetOutput(f)
+}
+
 // run once at container startup
 // pull comm information out of environment variables and save to disk
 func setupTLSInfo() {
 	tlsPublicCert, envErr := os.LookupEnv(daemonPublicCertEnvVar)
 	if !envErr {
-		panic("TLS certificate is missing from environment variables")
+		log.Panicf("TLS certificate is missing from environment variables")
 	}
 	tlsPrivateKey, envErr := os.LookupEnv(daemonPrivateKeyEnvVar)
 	if !envErr {
-		panic("TLS key is missing from environment variables")
+		log.Panicf("TLS key is missing from environment variables")
 	}
 	authKey, envErr := os.LookupEnv(daemonAuthEnvVar)
 	if !envErr {
-		panic("authorization is missing from environment variables")
+		log.Panicf("authorization is missing from environment variables")
 	}
 	//
 	err := ioutil.WriteFile(tlsCertFile, []byte(tlsPublicCert), 0300)
 	if err != nil {
-		panic("Couldn't save tls server certificate to disk")
+		log.Panicf("Couldn't save tls server certificate to disk")
 	}
 	err = ioutil.WriteFile(tlsKeyFile, []byte(tlsPrivateKey), 0300)
 	if err != nil {
-		panic("Couldn't save tls server key to disk")
+		log.Panicf("Couldn't save tls server key to disk")
 	}
 
 	state.SetAuthorizationKey(authKey)
@@ -51,11 +64,11 @@ func daemonStartup() {
 		// startup file doesn't exist, this is the first time the daemon has started
 		f, err := os.Create(startupFile)
 		if err != nil {
-			panic("Couldn't write startup file")
+			log.Panicf("Couldn't write startup file")
 		}
 		err = f.Close()
 		if err != nil {
-			panic("Couldn't close startup file")
+			log.Panicf("Couldn't close startup file")
 		}
 	} else {
 		// daemon has already started previously, rehydrate state from disk
