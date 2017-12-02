@@ -102,10 +102,13 @@ func setupServer() *http.Server {
 	return server
 }
 
-//
 func main() {
 	daemonStartup()
+	log.Println("daemonStartup")
 	setupTLSInfo()
+	log.Println("TLS info retrieved")
 	server := setupServer()
+	log.Println("server setup")
 	server.ListenAndServeTLS(tlsCertFile, tlsKeyFile)
+	log.Println("daemon finished")
 }
