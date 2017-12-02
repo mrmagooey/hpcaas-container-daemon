@@ -109,6 +109,7 @@ func main() {
 	log.Println("TLS info retrieved")
 	server := setupServer()
 	log.Println("server setup")
-	server.ListenAndServeTLS(tlsCertFile, tlsKeyFile)
+	err := server.ListenAndServeTLS(tlsCertFile, tlsKeyFile)
+	log.Println(err)
 	log.Println("daemon finished")
 }
