@@ -7,19 +7,23 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/mrmagooey/hpcaas-container-daemon/state"
 )
 
-var startupFile = "/hpcaas/daemon/daemon_has_started"
-var tlsCertFile = "/hpcaas/daemon/tls_server.crt"
-var tlsKeyFile = "/hpcaas/daemon/tls_server.key"
+// BaseDaemonDir the root of the daemon working dir
+var BaseDaemonDir = "/hpcaas/daemon"
+
+var startupFile = filepath.Join(BaseDaemonDir, "daemon_has_started")
+var tlsCertFile = filepath.Join(BaseDaemonDir, "tls_server.crt")
+var tlsKeyFile = filepath.Join(BaseDaemonDir, "tls_server.key")
 
 var daemonPublicCertEnvVar = "TLS_PUBLIC_CERT"
 var daemonPrivateKeyEnvVar = "TLS_PRIVATE_KEY"
 var daemonAuthEnvVar = "AUTHORIZATION"
 
-var logFileLocation = "/hpcaaas/daemon/log.txt"
+var logFileLocation = filepath.Join(BaseDaemonDir, "log.txt")
 
 func init() {
 	f, err := os.OpenFile(logFileLocation, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
