@@ -3,13 +3,14 @@ package container
 import (
 	"bytes"
 	"errors"
+	"log"
 	"os"
 	"os/exec"
 	"syscall"
 	"time"
 
 	"github.com/mitchellh/go-ps"
-	common "github.com/mrmagooey/hpcaas-common"
+	"github.com/mrmagooey/hpcaas-common"
 	"github.com/mrmagooey/hpcaas-container-daemon/state"
 )
 
@@ -18,7 +19,7 @@ import (
 // otherwise will spawn a goroutine that watches the subprocess
 // check that we aren't already running
 func ExecuteCode() error {
-	if state.GetCodeState() != common.CodeWaitingState {
+	if state.GetCodeStatus() != common.CodeWaitingStatus {
 		return errors.New("Code already started")
 	}
 	// get hpcaas code info from state
@@ -26,7 +27,7 @@ func ExecuteCode() error {
 	codeArgs := state.GetCodeArguments()
 	codePath := "/hpcaas/code/" + codeName
 	if _, err := os.Stat(codePath); err != nil {
-		state.SetCodeState(common.CodeMissingState)
+		state.SetCodeStatus(common.CodeMissingStatus)
 		return errors.New("Code executable is missing")
 	}
 	cmd := exec.Command(codePath, codeArgs...)
@@ -43,10 +44,10 @@ func ExecuteCode() error {
 	cmd.Stdout = &out
 	cmd.Stderr = &err
 	// start the code
-	state.SetCodeStartedMethod(common.StartedByDaemonState)
-	state.SetCodeState(common.CodeRunningState)
+	state.SetCodeStartedMethod(common.StartedByDaemonStatus)
+	state.SetCodeStatus(common.CodeRunningStatus)
 	if err := cmd.Start(); err != nil {
-		state.SetCodeState(common.CodeFailedToStartState)
+		state.SetCodeStatus(common.CodeFailedToStartStatus)
 		return errors.New("The code has failed to start")
 	}
 	state.SetCodePID(cmd.Process.Pid)
@@ -58,14 +59,14 @@ func ExecuteCode() error {
 
 // KillCode send the kill signal
 func KillCode() error {
-	if s := state.GetCodeState(); s != common.CodeRunningState {
+	if s := state.GetCodeStatus(); s != common.CodeRunningStatus {
 		return errors.New("No process currently running")
 	}
-	state.SetCodeState(common.CodeKilledState)
+	state.SetCodeStatus(common.CodeKilledStatus)
 	proc, err := os.FindProcess(state.GetCodePID())
 	if err != nil {
-		state.AddErrorMessage(err.Error())
-		state.SetCodeState(common.CodeFailedToKillState)
+		log.Println(err.Error())
+		state.SetCodeStatus(common.CodeFailedToKillStatus)
 	}
 	// extra check that the process is running
 	err = proc.Signal(syscall.Signal(0))
@@ -78,8 +79,8 @@ func KillCode() error {
 	// tell the process to terminate
 	err = proc.Signal(syscall.SIGTERM)
 	if err != nil {
-		state.AddErrorMessage(err.Error())
-		state.SetCodeState(common.CodeFailedToKillState)
+		log.Println(err.Error())
+		state.SetCodeStatus(common.CodeFailedToKillStatus)
 	}
 	return nil
 }
@@ -93,15 +94,15 @@ func KillCode() error {
 func findProcess() {
 	for {
 		time.Sleep(1 * time.Second)
-		if state.GetCodeState() == common.CodeWaitingState {
+		if state.GetCodeStatus() == common.CodeWaitingStatus {
 			// Get the process list
 			procs, _ := ps.Processes()
 			for _, psProc := range procs {
 				if psProc.Executable() == state.GetCodeName() {
 					pid := psProc.Pid()
 					proc, _ := os.FindProcess(pid)
-					state.SetCodeState(common.CodeRunningState)
-					state.SetCodeStartedMethod(common.StartedExternallyState)
+					state.SetCodeStatus(common.CodeRunningStatus)
+					state.SetCodeStartedMethod(common.StartedExternallyStatus)
 					state.SetCodePID(pid)
 					go watchProc(proc)
 				}
@@ -116,7 +117,7 @@ func watchProc(proc *os.Process) {
 		err := proc.Signal(syscall.Signal(0))
 		if err != nil {
 			// process has died, need to update things
-			state.SetCodeState(common.CodeStoppedState)
+			state.SetCodeStatus(common.CodeStoppedStatus)
 		}
 	}
 }
@@ -133,20 +134,20 @@ func watchCmd(cmd *exec.Cmd, out *bytes.Buffer, err *bytes.Buffer) {
 			// there is a return code
 			if _, ok := exiterr.Sys().(syscall.WaitStatus); ok {
 				// if we killed the code don't change the state to error
-				if state.GetCodeState() != common.CodeKilledState {
-					state.SetCodeState(common.CodeErrorState)
-					state.AddErrorMessage(err.Error())
+				if state.GetCodeStatus() != common.CodeKilledStatus {
+					state.SetCodeStatus(common.CodeErrorStatus)
+					log.Println(err.Error())
 				}
 			}
 		} else {
 			// the code has died, but there is no return code (?)
-			if state.GetCodeState() != common.CodeKilledState {
-				state.SetCodeState(common.CodeErrorState)
+			if state.GetCodeStatus() != common.CodeKilledStatus {
+				state.SetCodeStatus(common.CodeErrorStatus)
 			}
 		}
 	} else {
 		// the code has finished with a return code of 0
-		state.SetCodeState(common.CodeStoppedState)
+		state.SetCodeStatus(common.CodeStoppedStatus)
 	}
 	state.SetCodeStdout(out.String())
 	state.SetCodeStderr(err.String())

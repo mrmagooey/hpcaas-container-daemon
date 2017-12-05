@@ -26,6 +26,12 @@
   version = "v1.6.0"
 
 [[projects]]
+  name = "github.com/imdario/mergo"
+  packages = ["."]
+  revision = "7fe0c75c13abdee74b09fcacef5ea1c6bba6a874"
+  version = "0.2.4"
+
+[[projects]]
   branch = "master"
   name = "github.com/mitchellh/go-ps"
   packages = ["."]
@@ -35,13 +41,7 @@
   branch = "master"
   name = "github.com/mrmagooey/hpcaas-common"
   packages = ["."]
-  revision = "fa7299a4a44c19c495798d04a66b4e30d3cb8a6c"
-
-[[projects]]
-  name = "github.com/mrmagooey/hpcaas-container-daemon"
-  packages = ["api/apiV1","container","state"]
-  revision = "945717a1631065ada88cd1892898b97cd998dae1"
-  version = "v0.1.3"
+  revision = "3870ed492f6498176de4a4edae7bd72d173de74c"
 
 [[projects]]
   name = "github.com/pmezard/go-difflib"
@@ -82,6 +82,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "fb31533f2c1d0872a312e448b010857c0cac2580b46738e195b73b9f28a0dca3"
+  inputs-digest = "74bae5ce9d10ebdbd6bfa83a141085b9b63011de1cb898012ee0cf853f983b1d"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/alecthomas/jsonschema"
-	common "github.com/mrmagooey/hpcaas-common"
+	"github.com/mrmagooey/hpcaas-common"
 	"github.com/mrmagooey/hpcaas-container-daemon/container"
 	"github.com/mrmagooey/hpcaas-container-daemon/state"
 	"github.com/xeipuuv/gojsonschema"
@@ -21,7 +21,6 @@ type responseJSON struct {
 }
 
 // generate a schema
-// takes a pointer to an initialized copy of the string
 func getJSONValidator(schemaStruct interface{}) *gojsonschema.Schema {
 	// generate a json schema struct from the original go struct
 	jsonSchema := jsonschema.Reflect(schemaStruct)
@@ -39,19 +38,6 @@ func getJSONValidator(schemaStruct interface{}) *gojsonschema.Schema {
 	return schema
 }
 
-// provide a standardised JSON response back to the client
-func jsonResponse(w http.ResponseWriter, status string, data map[string]interface{}) {
-	resp := responseJSON{
-		Status: status,
-		Data:   data,
-	}
-	respBytes, err := json.Marshal(resp)
-	if err != nil {
-		panic("Can't marshall the json response")
-	}
-	w.Write(respBytes)
-}
-
 // check that r.body is populated, and that it satisfies schema
 func validatePOSTRequest(body []byte, schema *gojsonschema.Schema) (err error) {
 	docLoader := gojsonschema.NewStringLoader(string(body))
@@ -61,7 +47,7 @@ func validatePOSTRequest(body []byte, schema *gojsonschema.Schema) (err error) {
 	return nil
 }
 
-// Heartbeat returns an empty response
+// Heartbeat returns the time
 func Heartbeat(w http.ResponseWriter, r *http.Request) {
 	t := time.Now()
 	w.Write([]byte(t.Format(time.UnixDate)))
@@ -70,26 +56,6 @@ func Heartbeat(w http.ResponseWriter, r *http.Request) {
 type setCodeParamsStruct struct {
 	CodeParameters map[string]string
 }
-
-// var setCodeParamsSchema = `{
-//   "type": "object",
-//   "properties": {
-//     "codeParameters": {
-//       "description": "A list of configuration items that the code will use",
-//       "type": "object",
-//       "additionalProperties": {
-//         "anyOf": [
-//           {
-//             "type": "string"
-//           }
-//         ]
-//       }
-//     }
-//   },
-//   "required": [
-//     "codeParameters"
-//   ]
-// }`
 
 // SetCodeParams returns a closure that handles http requests
 func SetCodeParams() func(w http.ResponseWriter, r *http.Request) {
@@ -142,19 +108,6 @@ type setCodeNameStruct struct {
 	CodeName string `json:"codeName"`
 }
 
-// var setCodeNameSchema = `{
-//   "type": "object",
-//   "properties": {
-//     "codeName": {
-//       "description": "Name of the code to be executed",
-//       "type": "string"
-//     }
-//   },
-//   "required": [
-//     "codeName"
-//   ]
-// }`
-
 // SetCodeName closure returning http handler that sets the code name
 func SetCodeName() func(w http.ResponseWriter, r *http.Request) {
 	schema := getJSONValidator(&setCodeNameStruct{})
@@ -189,7 +142,7 @@ func SetCodeName() func(w http.ResponseWriter, r *http.Request) {
 }
 
 type setCodeStateStruct struct {
-	CodeState float64 `json:"codeState"`
+	CodeStatus float64 `json:"codeStatus"`
 }
 
 // SetCodeState closure returning http handler that sets the code state
@@ -212,7 +165,7 @@ func SetCodeState() func(w http.ResponseWriter, r *http.Request) {
 		var responseStruct = &setCodeStateStruct{}
 		json.Unmarshal(body, responseStruct)
 		// send to state
-		state.SetCodeState(common.CodeState(responseStruct.CodeState))
+		state.SetCodeStatus(common.CodeStatus(responseStruct.CodeStatus))
 		if err != nil {
 			jsonResponse(w, "error", map[string]interface{}{
 				"message": "state failed to set",
@@ -228,20 +181,6 @@ func SetCodeState() func(w http.ResponseWriter, r *http.Request) {
 type commandSchemaStruct struct {
 	Command string `json:"command"`
 }
-
-// var commandSchema = bytes.NewBufferString(`{
-// 	"type": "object",
-// 	"properties": {
-// 		"command": {
-// 			"description": "Command",
-// 			"type": "string",
-// 			"enum": ["start", "kill"]
-// 		}
-// 	},
-// 	"required": [
-// 		"codeState"
-// 	]
-// }`)
 
 // Command closure that returning http handler that gives a command to the daemon
 // this is responsible for starting and killing code
@@ -306,23 +245,6 @@ func Command() func(w http.ResponseWriter, r *http.Request) {
 type setSSHAddressesSchemaStruct struct {
 	SSHAddresses map[int]string `json:"sshAddresses"`
 }
-
-// var setSSHAddressesSchema = bytes.NewBufferString(`{
-//   "type": "object",
-//   "properties": {
-//     "sshAddresses": {
-//       "description": "Keys are container ids and values are the <ip>:<port> strings",
-//       "type": "object",
-//       "patternProperties": {
-//         "^\\d+$": {"type": "string"}
-//       },
-//       "additionalProperties": false
-//     }
-//   },
-//   "required": [
-//     "sshAddresses"
-//   ]
-// }`)
 
 // SetSSHAddresses closure that returns http handler responsible for setting ssh addresses of other containers
 func SetSSHAddresses() func(w http.ResponseWriter, r *http.Request) {

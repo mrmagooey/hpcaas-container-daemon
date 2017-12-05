@@ -38,27 +38,30 @@ func init() {
 func setupTLSInfo() {
 	tlsPublicCert, envErr := os.LookupEnv(daemonPublicCertEnvVar)
 	if !envErr {
-		log.Panicf("TLS certificate is missing from environment variables")
+		log.Panicln("TLS certificate is missing from environment variables")
 	}
 	tlsPrivateKey, envErr := os.LookupEnv(daemonPrivateKeyEnvVar)
 	if !envErr {
-		log.Panicf("TLS key is missing from environment variables")
+		log.Panicln("TLS key is missing from environment variables")
 	}
 	authKey, envErr := os.LookupEnv(daemonAuthEnvVar)
 	if !envErr {
-		log.Panicf("authorization is missing from environment variables")
+		log.Panicln("authorization is missing from environment variables")
 	}
 	//
 	err := ioutil.WriteFile(tlsCertFile, []byte(tlsPublicCert), 0300)
 	if err != nil {
-		log.Panicf("Couldn't save tls server certificate to disk")
+		log.Panicln("Couldn't save tls server certificate to disk")
 	}
 	err = ioutil.WriteFile(tlsKeyFile, []byte(tlsPrivateKey), 0300)
 	if err != nil {
-		log.Panicf("Couldn't save tls server key to disk")
+		log.Panicln("Couldn't save tls server key to disk")
 	}
 
-	state.SetAuthorizationKey(authKey)
+	err = state.SetAuthorizationKey(authKey)
+	if err != nil {
+		log.Panicln("Couldn't add auth key to state")
+	}
 }
 
 // check if this is the first time that the daemon has started up
@@ -94,10 +97,11 @@ func setupServer() *http.Server {
 			tls.TLS_RSA_WITH_AES_256_CBC_SHA,
 		}}
 	routes := registerRoutes()
+	authRoutes := authMiddleware(routes)
 	server := &http.Server{
-		Addr:      ":443",
+		Addr:      ":1100",
 		TLSConfig: tlsConfig,
-		Handler:   routes,
+		Handler:   authRoutes,
 	}
 	return server
 }

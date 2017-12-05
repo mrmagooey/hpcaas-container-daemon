@@ -6,67 +6,29 @@ import (
 	"io/ioutil"
 	"sync"
 
-	common "github.com/mrmagooey/hpcaas-common"
+	"github.com/imdario/mergo"
+	"github.com/mrmagooey/hpcaas-common"
 )
 
 var stateFile = "/hpcaas/daemon/state.json"
 
-// ContainerAddresses maps the container id to a string in the format ip<port>
-type ContainerAddresses map[int]string
-
-// and what the address:port is for every other container
-type extraPort struct {
-	InternalPort           int
-	Name                   string
-	ExternalContainerPorts ContainerAddresses
-}
-
-type stateStruct struct {
-	CodeParams        map[string]string  `json:"codeParams"`
-	SharedFileSystem  bool               `json:"sharedFileSystem"`
-	ExtraPorts        []extraPort        `json:"extraPorts"`
-	CodeName          string             `json:"codeName"`
-	CodeArguments     []string           `json:"codeArguments"`
-	CodeState         common.CodeState   `json:"codeState"`
-	DaemonState       uint8              `json:"daemonState"`
-	ResultState       common.ResultState `json:"resultState"`
-	SSHAddresses      ContainerAddresses `json:"sshAddresses"`
-	WorldRank         int                `json:"worldRank"`
-	WorldSize         int                `json:"worldSize"`
-	ResultsDirectory  string             `json:"resultsDirectory"`
-	ResultsURL        string             `json:"resultsUrl"`
-	CodeExitStatus    int                `json:"codeExitStatus"`
-	AuthorizationKey  string             `json:"authorizationKey"`
-	CodeStdout        string
-	CodeStderr        string
-	ErrorMessages     []string
-	CodePID           int
-	CodeStartedMethod int
-	SSHPrivateKey     string
-	SSHPublicKey      string
-}
-
 // set defaults
-var daemonState = stateStruct{}
+var daemonState = common.DaemonState{}
 var stateRWMutex = sync.RWMutex{}
 
-// InitState resets the state of the daemonState to a set of default values
-// used for setting state on daemon startup
-func InitState() {
-	stateRWMutex.Lock()
-	daemonState = stateStruct{
-		SharedFileSystem: false,
-		CodeName:         "hpc-code",
-		CodeState:        common.CodeWaitingState,
-		DaemonState:      common.DaemonStartedState,
-		ResultState:      common.ResultWaitingState,
-		ResultsDirectory: "/hpcaas/results",
-	}
-	stateRWMutex.Unlock()
+// GetDaemonState return a copy of the daemon state
+func GetDaemonState() common.DaemonState {
+	return daemonState
 }
 
-func init() {
-	InitState()
+// SetDaemonState takes a daemon state and overrides the daemons state
+func SetDaemonState(newState common.DaemonState) {
+	stateRWMutex.Lock()
+	defer stateRWMutex.Unlock()
+	mergo.MergeWithOverwrite(daemonState, newState)
+	daemonState = newState
+	// save to disk
+	go dehydrateToDisk()
 }
 
 // GetStateJSON return current state as json
@@ -93,7 +55,7 @@ func dehydrateToDisk() {
 
 // RehydrateFromDisk reads from the state.json file on disk and recreates the internal daemonState of the daemon
 // used as a recovery strategy if the daemon has been killed or crashed
-// best-effort attempt, if the file is bad or missing this function not complain
+// best-effort attempt, if the file is bad or missing this function will not complain
 func RehydrateFromDisk() {
 	file, err := ioutil.ReadFile(stateFile)
 	if err != nil {
@@ -111,7 +73,7 @@ func RehydrateFromDisk() {
 func SetCodeName(name string) {
 	stateRWMutex.Lock()
 	defer stateRWMutex.Unlock()
-	daemonState.CodeName = name
+	daemonState.CodeName = &name
 	go dehydrateToDisk()
 }
 
@@ -119,22 +81,22 @@ func SetCodeName(name string) {
 func GetCodeName() string {
 	stateRWMutex.RLock()
 	defer stateRWMutex.RUnlock()
-	return daemonState.CodeName
+	return *daemonState.CodeName
 }
 
-// SetCodeState safely sets codeState
-func SetCodeState(codeState common.CodeState) {
+// SetCodeStatus safely sets codeState
+func SetCodeStatus(codeStatus common.CodeStatus) {
 	stateRWMutex.Lock()
 	defer stateRWMutex.Unlock()
-	daemonState.CodeState = codeState
+	daemonState.CodeStatus = &codeStatus
 	go dehydrateToDisk()
 }
 
-// GetCodeState returns codeState
-func GetCodeState() common.CodeState {
+// GetCodeStatus returns codeState
+func GetCodeStatus() common.CodeStatus {
 	stateRWMutex.RLock()
 	defer stateRWMutex.RUnlock()
-	return daemonState.CodeState
+	return *daemonState.CodeStatus
 }
 
 // merge two map[string]interface{}'s
@@ -154,7 +116,8 @@ func mergeCodeParams(original map[string]string, second map[string]string) map[s
 func UpdateCodeParams(params map[string]string) error {
 	stateRWMutex.Lock()
 	defer stateRWMutex.Unlock()
-	daemonState.CodeParams = mergeCodeParams(daemonState.CodeParams, params)
+	merged := mergeCodeParams(*daemonState.CodeParams, params)
+	daemonState.CodeParams = &merged
 	go dehydrateToDisk()
 	return nil
 }
@@ -163,7 +126,7 @@ func UpdateCodeParams(params map[string]string) error {
 func SetCodeParams(params map[string]string) error {
 	stateRWMutex.Lock()
 	defer stateRWMutex.Unlock()
-	daemonState.CodeParams = params
+	daemonState.CodeParams = &params
 	go dehydrateToDisk()
 	return nil
 }
@@ -172,32 +135,39 @@ func SetCodeParams(params map[string]string) error {
 func GetCodeParams() map[string]string {
 	stateRWMutex.RLock()
 	defer stateRWMutex.RUnlock()
-	return daemonState.CodeParams
+	return *daemonState.CodeParams
 }
 
 // SetSSHAddresses set ssh addresses
-func SetSSHAddresses(addrs ContainerAddresses) error {
+func SetSSHAddresses(addrs common.ContainerAddresses) error {
 	stateRWMutex.Lock()
 	defer stateRWMutex.Unlock()
-	daemonState.SSHAddresses = addrs
+	daemonState.SSHAddresses = &addrs
 	go dehydrateToDisk()
 	return nil
 }
 
 // GetSSHAddresses return sshAddresses
-func GetSSHAddresses() ContainerAddresses {
+func GetSSHAddresses() common.ContainerAddresses {
 	stateRWMutex.RLock()
 	defer stateRWMutex.RUnlock()
-	return daemonState.SSHAddresses
+	return *daemonState.SSHAddresses
 }
 
 // SetAuthorizationKey sets auth key
 func SetAuthorizationKey(key string) error {
 	stateRWMutex.Lock()
 	defer stateRWMutex.Unlock()
-	daemonState.AuthorizationKey = key
+	daemonState.AuthorizationKey = &key
 	go dehydrateToDisk()
 	return nil
+}
+
+// GetAuthorizationKey gets auth key
+func GetAuthorizationKey() string {
+	stateRWMutex.RLock()
+	defer stateRWMutex.RUnlock()
+	return *daemonState.AuthorizationKey
 }
 
 // SetCodeArguments set code arguments
@@ -205,7 +175,7 @@ func SetAuthorizationKey(key string) error {
 func SetCodeArguments(args []string) error {
 	stateRWMutex.Lock()
 	defer stateRWMutex.Unlock()
-	daemonState.CodeArguments = args
+	daemonState.CodeArguments = &args
 	go dehydrateToDisk()
 	return nil
 }
@@ -214,103 +184,89 @@ func SetCodeArguments(args []string) error {
 func GetCodeArguments() []string {
 	stateRWMutex.RLock()
 	defer stateRWMutex.RUnlock()
-	return daemonState.CodeArguments
+	return *daemonState.CodeArguments
 }
 
 // SetCodeStdout set the stdout of the user code
 func SetCodeStdout(stdout string) {
 	stateRWMutex.Lock()
 	defer stateRWMutex.Unlock()
-	daemonState.CodeStdout = stdout
+	daemonState.CodeStdout = &stdout
 }
 
 // GetCodeStdout get the stdout of the code
 func GetCodeStdout() string {
 	stateRWMutex.RLock()
 	defer stateRWMutex.RUnlock()
-	return daemonState.CodeStdout
+	return *daemonState.CodeStdout
 }
 
 // SetCodeStderr set the stderr of the user code
 func SetCodeStderr(stderr string) {
 	stateRWMutex.Lock()
 	defer stateRWMutex.Unlock()
-	daemonState.CodeStderr = stderr
+	daemonState.CodeStderr = &stderr
 }
 
 // GetCodeStderr get the stderr of the user code
 func GetCodeStderr() string {
 	stateRWMutex.RLock()
 	defer stateRWMutex.RUnlock()
-	return daemonState.CodeStderr
-}
-
-// AddErrorMessage append an error message to the general error log
-func AddErrorMessage(err string) {
-	stateRWMutex.Lock()
-	defer stateRWMutex.Unlock()
-	daemonState.ErrorMessages = append(daemonState.ErrorMessages, err)
-}
-
-// GetErrorMessages returns the error log
-func GetErrorMessages() []string {
-	stateRWMutex.RLock()
-	defer stateRWMutex.RUnlock()
-	return daemonState.ErrorMessages
+	return *daemonState.CodeStderr
 }
 
 // SetCodePID set the user code PID
 func SetCodePID(pid int) {
 	stateRWMutex.Lock()
 	defer stateRWMutex.Unlock()
-	daemonState.CodePID = pid
+	daemonState.CodePID = &pid
 }
 
 // GetCodePID get the user code PID
 func GetCodePID() int {
 	stateRWMutex.RLock()
 	defer stateRWMutex.RUnlock()
-	return daemonState.CodePID
+	return *daemonState.CodePID
 }
 
 // SetCodeStartedMethod set the user code start method
-func SetCodeStartedMethod(method common.StartedState) {
+func SetCodeStartedMethod(method common.StartedStatus) {
 	stateRWMutex.Lock()
 	defer stateRWMutex.Unlock()
-	daemonState.CodeStartedMethod = int(method)
+	daemonState.CodeStartedStatus = &method
 }
 
 // GetCodeStartedMethod get the user code start method
-func GetCodeStartedMethod() int {
+func GetCodeStartedMethod() common.StartedStatus {
 	stateRWMutex.RLock()
 	defer stateRWMutex.RUnlock()
-	return daemonState.CodeStartedMethod
+	return *daemonState.CodeStartedStatus
 }
 
 // SetSSHPrivateKey set the private key
 func SetSSHPrivateKey(priv string) {
 	stateRWMutex.Lock()
 	defer stateRWMutex.Unlock()
-	daemonState.SSHPrivateKey = priv
+	daemonState.SSHPrivateKey = &priv
 }
 
 // GetSSHPrivateKey get the ssh private key
 func GetSSHPrivateKey() string {
 	stateRWMutex.RLock()
 	defer stateRWMutex.RUnlock()
-	return daemonState.SSHPrivateKey
+	return *daemonState.SSHPrivateKey
 }
 
 // SetSSHPublicKey set the public key
 func SetSSHPublicKey(priv string) {
 	stateRWMutex.Lock()
 	defer stateRWMutex.Unlock()
-	daemonState.SSHPublicKey = priv
+	daemonState.SSHPublicKey = &priv
 }
 
 // GetSSHPublicKey get the ssh public key
 func GetSSHPublicKey() string {
 	stateRWMutex.RLock()
 	defer stateRWMutex.RUnlock()
-	return daemonState.SSHPublicKey
+	return *daemonState.SSHPublicKey
 }
