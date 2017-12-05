@@ -11,8 +11,10 @@ build:
 	go build -v
 	$(call compress)
 
+DAEMON_DIR = github.com/mrmagooey/hpcaas-container-daemon
+
 build-docker:
-	docker run --rm -v "$(shell pwd)":/go/src/hpcaas-container-daemon -w /go/src/hpcaas-container-daemon golang:1.9.2 /bin/bash -c "go get -u github.com/golang/dep/cmd/dep; dep ensure; go build -v"
+	docker run --rm -v "$(shell pwd)":/go/src/$(DAEMON_DIR) -w /go/src/$(DAEMON_DIR) golang:1.9.2 /bin/bash -c "go get -u github.com/golang/dep/cmd/dep; dep ensure; go build -v"
 	$(call compress)
 
 test-image-name=hpcaas-daemon-test-image
