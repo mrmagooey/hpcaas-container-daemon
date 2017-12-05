@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/mrmagooey/hpcaas-container-daemon/state"
@@ -8,7 +9,7 @@ import (
 
 func authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		plog.Println("Before")
+		log.Println("Before")
 		if r.Header.Get("WWW-Authenticate") == state.GetAuthorizationKey() {
 			next.ServeHTTP(w, r) // call original routes
 		}
