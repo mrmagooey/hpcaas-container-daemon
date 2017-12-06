@@ -107,6 +107,12 @@ func setupServer() *http.Server {
 }
 
 func main() {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Println("Panic recovery: ", r)
+		}
+	}()
+
 	daemonStartup()
 	log.Println("daemonStartup")
 	setupTLSInfo()
