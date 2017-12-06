@@ -13,8 +13,15 @@ build:
 
 DAEMON_DIR = github.com/mrmagooey/hpcaas-container-daemon
 
+build-container-name= hpcaas-daemon-build-container
+docker_build_container_exists=$(shell docker ps -a | grep $(build-container-name) > /dev/null 2>&1; echo $$?)
+
 build-docker:
-	docker run --rm -v "$(shell pwd)":/go/src/$(DAEMON_DIR) -w /go/src/$(DAEMON_DIR) golang:1.9.2 /bin/bash -c "go get -u github.com/golang/dep/cmd/dep; dep ensure; go build -v"
+ifeq ($(docker_build_container_exists), 0)
+	docker start -a $(build-container-name)
+else
+	docker run --name "$(build-container-name)" -v "$(shell pwd)":/go/src/$(DAEMON_DIR) -w /go/src/$(DAEMON_DIR) golang:1.9.2 /bin/bash -c "go get -u github.com/golang/dep/cmd/dep; dep ensure; go build -v"
+endif 
 	$(call compress)
 
 test-image-name=hpcaas-daemon-test-image
