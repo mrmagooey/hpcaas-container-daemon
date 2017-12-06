@@ -100,7 +100,7 @@ func setupServer() *http.Server {
 	routes := registerRoutes()
 	authRoutes := authMiddleware(routes)
 	server := &http.Server{
-		Addr:      ":1100",
+		Addr:      ":443",
 		TLSConfig: tlsConfig,
 		Handler:   authRoutes,
 	}

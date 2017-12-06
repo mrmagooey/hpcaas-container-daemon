@@ -26,7 +26,8 @@ func registerRoutes() *mux.Router {
 	// update any state variable
 	version1Subroute.Methods("POST").Path("/update/").HandlerFunc(apiV1.Update)
 	// get the current state of the daemon
-	version1Subroute.Methods("GET").Path("/states/").HandlerFunc(apiV1.State)
+	version1Subroute.Methods("GET").Path("/state/").HandlerFunc(apiV1.State)
+
 	// send an event
 	version1Subroute.Methods("POST").Path("/event/").HandlerFunc(apiV1.Event)
 

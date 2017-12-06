@@ -13,9 +13,11 @@ func authMiddleware(next http.Handler) http.Handler {
 		if authKey, ok := state.GetAuthorizationKey(); ok {
 			if r.Header.Get("WWW-Authenticate") == authKey {
 				next.ServeHTTP(w, r) // call original routes
+				return
 			}
 		}
 		// reject
 		http.Error(w, "Bad Authorization header", 401)
+		return
 	})
 }
