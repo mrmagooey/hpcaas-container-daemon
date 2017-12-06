@@ -1,10 +1,14 @@
 package container
 
-import "io/ioutil"
-import "sync"
-import "github.com/mrmagooey/hpcaas-container-daemon/state"
-import "bytes"
-import "fmt"
+import (
+	"bytes"
+	"errors"
+	"fmt"
+	"io/ioutil"
+	"sync"
+
+	"github.com/mrmagooey/hpcaas-container-daemon/state"
+)
 
 var hostFilePath = "/hpcaas/runtime/hostfile"
 
@@ -15,7 +19,10 @@ var hostFileMutex = sync.Mutex{}
 func WriteHostFile() error {
 	hostFileMutex.Lock()
 	defer hostFileMutex.Unlock()
-	addrs := state.GetSSHAddresses()
+	addrs, ok := state.GetSSHAddresses()
+	if !ok {
+		return errors.New("No SSH Addresses in state")
+	}
 	var buf bytes.Buffer
 	for id := range addrs {
 		hostfileEntry := fmt.Sprintf("%s slots 1\n", generateContainerName(id))

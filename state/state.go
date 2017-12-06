@@ -78,10 +78,13 @@ func SetCodeName(name string) {
 }
 
 // GetCodeName safely sets codeState
-func GetCodeName() string {
+func GetCodeName() (name string, exists bool) {
 	stateRWMutex.RLock()
 	defer stateRWMutex.RUnlock()
-	return *daemonState.CodeName
+	if daemonState.CodeName != nil {
+		return *daemonState.CodeName, true
+	}
+	return "", false
 }
 
 // SetCodeStatus safely sets codeState
@@ -93,10 +96,13 @@ func SetCodeStatus(codeStatus common.CodeStatus) {
 }
 
 // GetCodeStatus returns codeState
-func GetCodeStatus() common.CodeStatus {
+func GetCodeStatus() (common.CodeStatus, bool) {
 	stateRWMutex.RLock()
 	defer stateRWMutex.RUnlock()
-	return *daemonState.CodeStatus
+	if daemonState.CodeStatus != nil {
+		return *daemonState.CodeStatus, true
+	}
+	return common.CodeStatus(0), false
 }
 
 // merge two map[string]interface{}'s
@@ -132,10 +138,13 @@ func SetCodeParams(params map[string]string) error {
 }
 
 // GetCodeParams return codeParams
-func GetCodeParams() map[string]string {
+func GetCodeParams() (map[string]string, bool) {
 	stateRWMutex.RLock()
 	defer stateRWMutex.RUnlock()
-	return *daemonState.CodeParams
+	if daemonState.CodeParams != nil {
+		return *daemonState.CodeParams, true
+	}
+	return nil, false
 }
 
 // SetSSHAddresses set ssh addresses
@@ -148,10 +157,13 @@ func SetSSHAddresses(addrs common.ContainerAddresses) error {
 }
 
 // GetSSHAddresses return sshAddresses
-func GetSSHAddresses() common.ContainerAddresses {
+func GetSSHAddresses() (common.ContainerAddresses, bool) {
 	stateRWMutex.RLock()
 	defer stateRWMutex.RUnlock()
-	return *daemonState.SSHAddresses
+	if daemonState.SSHAddresses != nil {
+		return *daemonState.SSHAddresses, true
+	}
+	return nil, false
 }
 
 // SetAuthorizationKey sets auth key
@@ -164,10 +176,13 @@ func SetAuthorizationKey(key string) error {
 }
 
 // GetAuthorizationKey gets auth key
-func GetAuthorizationKey() string {
+func GetAuthorizationKey() (string, bool) {
 	stateRWMutex.RLock()
 	defer stateRWMutex.RUnlock()
-	return *daemonState.AuthorizationKey
+	if daemonState.AuthorizationKey != nil {
+		return *daemonState.AuthorizationKey, true
+	}
+	return "", false
 }
 
 // SetCodeArguments set code arguments
@@ -181,10 +196,13 @@ func SetCodeArguments(args []string) error {
 }
 
 // GetCodeArguments return code arguments
-func GetCodeArguments() []string {
+func GetCodeArguments() ([]string, bool) {
 	stateRWMutex.RLock()
 	defer stateRWMutex.RUnlock()
-	return *daemonState.CodeArguments
+	if daemonState.CodeArguments != nil {
+		return *daemonState.CodeArguments, true
+	}
+	return nil, false
 }
 
 // SetCodeStdout set the stdout of the user code
@@ -195,10 +213,13 @@ func SetCodeStdout(stdout string) {
 }
 
 // GetCodeStdout get the stdout of the code
-func GetCodeStdout() string {
+func GetCodeStdout() (string, bool) {
 	stateRWMutex.RLock()
 	defer stateRWMutex.RUnlock()
-	return *daemonState.CodeStdout
+	if daemonState.CodeStdout != nil {
+		return *daemonState.CodeStdout, true
+	}
+	return "", false
 }
 
 // SetCodeStderr set the stderr of the user code
@@ -209,10 +230,13 @@ func SetCodeStderr(stderr string) {
 }
 
 // GetCodeStderr get the stderr of the user code
-func GetCodeStderr() string {
+func GetCodeStderr() (string, bool) {
 	stateRWMutex.RLock()
 	defer stateRWMutex.RUnlock()
-	return *daemonState.CodeStderr
+	if daemonState.CodeStderr != nil {
+		return *daemonState.CodeStderr, true
+	}
+	return "", false
 }
 
 // SetCodePID set the user code PID
@@ -223,10 +247,13 @@ func SetCodePID(pid int) {
 }
 
 // GetCodePID get the user code PID
-func GetCodePID() int {
+func GetCodePID() (int, bool) {
 	stateRWMutex.RLock()
 	defer stateRWMutex.RUnlock()
-	return *daemonState.CodePID
+	if daemonState.CodePID != nil {
+		return *daemonState.CodePID, true
+	}
+	return 0, false
 }
 
 // SetCodeStartedMethod set the user code start method
@@ -237,10 +264,13 @@ func SetCodeStartedMethod(method common.StartedStatus) {
 }
 
 // GetCodeStartedMethod get the user code start method
-func GetCodeStartedMethod() common.StartedStatus {
+func GetCodeStartedMethod() (common.StartedStatus, bool) {
 	stateRWMutex.RLock()
 	defer stateRWMutex.RUnlock()
-	return *daemonState.CodeStartedStatus
+	if daemonState.CodeStartedStatus != nil {
+		return *daemonState.CodeStartedStatus, true
+	}
+	return common.StartedStatus(0), false
 }
 
 // SetSSHPrivateKey set the private key
@@ -251,10 +281,13 @@ func SetSSHPrivateKey(priv string) {
 }
 
 // GetSSHPrivateKey get the ssh private key
-func GetSSHPrivateKey() string {
+func GetSSHPrivateKey() (string, bool) {
 	stateRWMutex.RLock()
 	defer stateRWMutex.RUnlock()
-	return *daemonState.SSHPrivateKey
+	if daemonState.SSHPrivateKey != nil {
+		return *daemonState.SSHPrivateKey, true
+	}
+	return "", false
 }
 
 // SetSSHPublicKey set the public key
@@ -265,8 +298,12 @@ func SetSSHPublicKey(priv string) {
 }
 
 // GetSSHPublicKey get the ssh public key
-func GetSSHPublicKey() string {
+func GetSSHPublicKey() (string, bool) {
 	stateRWMutex.RLock()
 	defer stateRWMutex.RUnlock()
-	return *daemonState.SSHPublicKey
+	if daemonState.SSHPublicKey != nil {
+		return *daemonState.SSHPublicKey, true
+	}
+	return "", false
+
 }

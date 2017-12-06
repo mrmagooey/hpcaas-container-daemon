@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 
 	"github.com/mrmagooey/hpcaas-container-daemon/state"
 )
@@ -108,8 +109,10 @@ func setupServer() *http.Server {
 
 func main() {
 	defer func() {
+		log.Println("Daemon finished")
 		if r := recover(); r != nil {
-			log.Println("Panic recovery: ", r)
+			fmt.Println("Panic recovery: ", r, debug.Stack())
+			log.Println("Panic recovery: ", r, debug.Stack())
 		}
 	}()
 
@@ -118,8 +121,11 @@ func main() {
 	setupTLSInfo()
 	log.Println("TLS info retrieved")
 	server := setupServer()
-	log.Println("server setup")
+	log.Println("TLS server has been setup")
 	err := server.ListenAndServeTLS(tlsCertFile, tlsKeyFile)
-	log.Println(err)
-	log.Println("daemon finished")
+	if err != nil {
+		log.Println("An error has occurred whilst starting the daemon server, or it has closed early")
+		log.Println(err)
+	}
+
 }

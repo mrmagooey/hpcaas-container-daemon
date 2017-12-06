@@ -19,12 +19,18 @@ import (
 // otherwise will spawn a goroutine that watches the subprocess
 // check that we aren't already running
 func ExecuteCode() error {
-	if state.GetCodeStatus() != common.CodeWaitingStatus {
+	if status, ok := state.GetCodeStatus(); ok && status != common.CodeWaitingStatus {
 		return errors.New("Code already started")
 	}
 	// get hpcaas code info from state
-	codeName := state.GetCodeName()
-	codeArgs := state.GetCodeArguments()
+	codeName, ok := state.GetCodeName()
+	if !ok {
+		return errors.New("No Code Name Set")
+	}
+	codeArgs, ok := state.GetCodeArguments()
+	if !ok {
+		return errors.New("No Code Arguments")
+	}
 	codePath := "/hpcaas/code/" + codeName
 	if _, err := os.Stat(codePath); err != nil {
 		state.SetCodeStatus(common.CodeMissingStatus)
@@ -32,7 +38,10 @@ func ExecuteCode() error {
 	}
 	cmd := exec.Command(codePath, codeArgs...)
 	// get the environment variables
-	codeParams := state.GetCodeParams()
+	codeParams, ok := state.GetCodeParams()
+	if !ok {
+		return errors.New("No Code parameters")
+	}
 	var envVars []string
 	for key, val := range codeParams {
 		envVars = append(envVars, key+"="+val)
@@ -59,11 +68,15 @@ func ExecuteCode() error {
 
 // KillCode send the kill signal
 func KillCode() error {
-	if s := state.GetCodeStatus(); s != common.CodeRunningStatus {
+	if s, ok := state.GetCodeStatus(); ok && s != common.CodeRunningStatus {
 		return errors.New("No process currently running")
 	}
 	state.SetCodeStatus(common.CodeKilledStatus)
-	proc, err := os.FindProcess(state.GetCodePID())
+	pid, ok := state.GetCodePID()
+	if !ok {
+		return errors.New("No PID in state, cannot kill code")
+	}
+	proc, err := os.FindProcess(pid)
 	if err != nil {
 		log.Println(err.Error())
 		state.SetCodeStatus(common.CodeFailedToKillStatus)
@@ -93,12 +106,14 @@ func KillCode() error {
 // This will be started in init() as a goroutine
 func findProcess() {
 	for {
-		time.Sleep(1 * time.Second)
-		if state.GetCodeStatus() == common.CodeWaitingStatus {
-			// Get the process list
+		if codeStatus, ok := state.GetCodeStatus(); ok && codeStatus == common.CodeWaitingStatus {
 			procs, _ := ps.Processes()
 			for _, psProc := range procs {
-				if psProc.Executable() == state.GetCodeName() {
+				codeName, ok := state.GetCodeName()
+				if !ok {
+					break
+				}
+				if psProc.Executable() == codeName {
 					pid := psProc.Pid()
 					proc, _ := os.FindProcess(pid)
 					state.SetCodeStatus(common.CodeRunningStatus)
@@ -107,7 +122,9 @@ func findProcess() {
 					go watchProc(proc)
 				}
 			}
+
 		}
+		time.Sleep(1 * time.Second)
 	}
 }
 
@@ -134,14 +151,14 @@ func watchCmd(cmd *exec.Cmd, out *bytes.Buffer, err *bytes.Buffer) {
 			// there is a return code
 			if _, ok := exiterr.Sys().(syscall.WaitStatus); ok {
 				// if we killed the code don't change the state to error
-				if state.GetCodeStatus() != common.CodeKilledStatus {
+				if codeStatus, ok := state.GetCodeStatus(); ok && codeStatus != common.CodeKilledStatus {
 					state.SetCodeStatus(common.CodeErrorStatus)
 					log.Println(err.Error())
 				}
 			}
 		} else {
 			// the code has died, but there is no return code (?)
-			if state.GetCodeStatus() != common.CodeKilledStatus {
+			if codeStatus, ok := state.GetCodeStatus(); ok && codeStatus != common.CodeKilledStatus {
 				state.SetCodeStatus(common.CodeErrorStatus)
 			}
 		}

@@ -1,21 +1,15 @@
 package container
 
-import "io/ioutil"
-import "bytes"
-import "fmt"
-import "strings"
-import "github.com/mrmagooey/hpcaas-container-daemon/state"
-import "sync"
+import (
+	"bytes"
+	"errors"
+	"fmt"
+	"io/ioutil"
+	"strings"
+	"sync"
 
-type configRequest struct {
-	Data       map[int]string
-	ReturnChan chan error
-}
-
-type keyRequest struct {
-	Data       string
-	ReturnChan chan error
-}
+	"github.com/mrmagooey/hpcaas-container-daemon/state"
+)
 
 var sshConfigFileLocation = "/root/.ssh/config"
 var sshPrivateKeyLocation = "/root/.ssh/private_key"
@@ -27,7 +21,10 @@ var writeConfigMut = sync.Mutex{}
 func WriteSSHConfig() error {
 	writeConfigMut.Lock()
 	defer writeConfigMut.Unlock()
-	sshAddresses := state.GetSSHAddresses()
+	sshAddresses, ok := state.GetSSHAddresses()
+	if !ok {
+		return errors.New("No SSH Addresses, cannot write ssh config")
+	}
 	var buffer bytes.Buffer
 	// config file preamble
 	buffer.WriteString("Host *\n")
@@ -51,22 +48,28 @@ func WriteSSHConfig() error {
 
 var writePubKeyMut = sync.Mutex{}
 
-// WritePublicKey is intended to be used as a goroutine and writes public key information to the filesystem
+// WritePublicKey writes pub key to authorized keys
 func WritePublicKey() error {
 	writePubKeyMut.Lock()
 	defer writePubKeyMut.Unlock()
-	publicKey := state.GetSSHPublicKey()
+	publicKey, ok := state.GetSSHPublicKey()
+	if !ok {
+		return errors.New("No public key in state")
+	}
 	err := ioutil.WriteFile(sshAuthorizedKeys, []byte(publicKey), 0644)
 	return err
 }
 
 var writePrivKeyMut = sync.Mutex{}
 
-// WritePrivateKey is intended to be used as a goroutine and writes private key information to the filesystem
+// WritePrivateKey writes private key to disk
 func WritePrivateKey() error {
 	writePrivKeyMut.Lock()
 	defer writePrivKeyMut.Unlock()
-	privateKey := state.GetSSHPrivateKey()
+	privateKey, ok := state.GetSSHPrivateKey()
+	if !ok {
+		return errors.New("No private key in state")
+	}
 	err := ioutil.WriteFile(sshPrivateKeyLocation, []byte(privateKey), 0600)
 	return err
 }
