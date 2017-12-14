@@ -3,9 +3,11 @@ package container
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
+	"runtime/debug"
 	"syscall"
 	"time"
 
@@ -105,6 +107,14 @@ func KillCode() error {
 // this will start the watchCmd and update the daemons state to reflect this new process.
 // This will be started in init() as a goroutine
 func findProcess() {
+	defer func() {
+		log.Println("findProcess finished")
+		if r := recover(); r != nil {
+			fmt.Println("Panic recovery: ", r, debug.Stack())
+			log.Println("Panic recovery: ", r, debug.Stack())
+		}
+	}()
+
 	for {
 		if codeStatus, ok := state.GetCodeStatus(); ok && codeStatus == common.CodeWaitingStatus {
 			procs, _ := ps.Processes()
